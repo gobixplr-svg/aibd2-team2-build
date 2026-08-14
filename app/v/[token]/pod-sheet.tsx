@@ -39,9 +39,12 @@ export function PodSheet({
   const canConfirm = signedBy.trim().length > 1 && (allChecked || note.trim().length > 3);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end bg-navy/60" onClick={onCancel}>
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center sm:justify-center bg-navy/60"
+      onClick={onCancel}
+    >
       <div
-        className="w-full max-w-md mx-auto rounded-t-xl bg-surface p-4 pb-8 flex flex-col gap-4"
+        className="w-full max-w-md mx-auto rounded-t-xl sm:rounded-xl bg-surface p-4 pb-8 sm:pb-4 flex flex-col gap-4 max-h-[90dvh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <div>

@@ -5,7 +5,7 @@ import Link from "next/link";
 export default function Home() {
   return (
     <main className="flex-1 flex flex-col items-center justify-center px-4 py-16">
-      <div className="w-full max-w-sm flex flex-col gap-6">
+      <div className="w-full max-w-sm md:max-w-2xl flex flex-col gap-6">
         <div>
           <div className="text-xs font-semibold uppercase tracking-wider text-brand">
             BetterRX Builder Day · Team 2
@@ -17,7 +17,7 @@ export default function Home() {
           </p>
         </div>
 
-        <nav className="flex flex-col gap-2">
+        <nav className="grid grid-cols-1 md:grid-cols-2 gap-2">
           <Surface
             href="/"
             title="Hospice board"

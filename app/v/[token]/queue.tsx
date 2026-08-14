@@ -101,7 +101,7 @@ export function VendorQueue({ initialOrders }: { initialOrders: Order[] }) {
   );
 
   return (
-    <main className="flex-1 px-3 py-4 flex flex-col gap-6">
+    <main className="flex-1 px-3 py-4 lg:px-4 lg:py-6 grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3 items-start">
       <Section title={`Incoming (${incoming.length})`}>
         {incoming.map((o) => (
           <OrderCard key={o.id} order={o}>
@@ -159,11 +159,15 @@ export function VendorQueue({ initialOrders }: { initialOrders: Order[] }) {
       </Section>
 
       {done.length > 0 && (
-        <Section title={`Done today (${done.length})`}>
-          {done.map((o) => (
-            <OrderCard key={o.id} order={o} done />
-          ))}
-        </Section>
+        <div className="md:col-span-2 xl:col-span-3">
+          <Section title={`Done today (${done.length})`}>
+            <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
+              {done.map((o) => (
+                <OrderCard key={o.id} order={o} done />
+              ))}
+            </div>
+          </Section>
+        </div>
       )}
 
       {sheet && (
