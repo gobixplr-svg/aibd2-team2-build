@@ -1,6 +1,6 @@
 # Lane cards — who owns what (one card per person)
 
-*Companion to [`kickoff-work-breakdown.md`](https://github.com/gobixplr-svg/ai-builder-day-2/blob/main/prep/betterrx/kickoff-work-breakdown.md). **Assignment locked at kickoff: Will = engine (he designed it, [`hermes-engine-design.md`](https://github.com/gobixplr-svg/ai-builder-day-2/blob/main/prep/betterrx/hermes-engine-design.md)) · Garrett = hospice side · Dan = vendor side + demo assets.** Dan drives the pitch and demo Saturday regardless of lane.*
+*Companion to [`kickoff-work-breakdown.md`](https://github.com/gobixplr-svg/ai-builder-day-2/blob/main/prep/betterrx/kickoff-work-breakdown.md). **RE-LOCKED at the 2:00 PM team sync (Granola note "Marketplace pressure and vendor consolidation strategy"): Will = engine · Garrett = vendor side (inherits Dan's `/v/` work: queue, POD + condition sheet, pickup clock — all pushed) · Dan = hospice side (kanban dashboard, family view, notification center, AI agent messaging) + the pitch.** Scope additions from that sync: AI-drafted first-pass notes on status changes, proactive reminders/urgency flagging, on-site inventory tracking + need forecasting (vendors keep equipment at hospice centers). **Git discipline changed: work on branches, pull before push, PR anything uncertain — no more direct-to-main.** DB: Postgres (local first). Zoom sync Sat 9–10 AM before the venue.*
 
 ## Repo layout (agreed once, prevents collisions)
 
