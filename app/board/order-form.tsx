@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import type { ExtractedOrder } from "@/lib/ai/extract-order";
 import type { Order, Patient, Urgency, Vendor } from "@/lib/contracts";
 import { CATALOG, DON_THRESHOLD_MONTHLY } from "@/lib/data/catalog";
 
@@ -46,6 +47,49 @@ export function OrderFormModal({
   });
   const [dispatchSource, setDispatchSource] = useState<"on_hand" | "vendor">("vendor");
   const [vendorId, setVendorId] = useState<string | null>(null);
+
+  // AI intake: paste a referral, Claude proposes a draft, the human
+  // reviews every field below before placing. Extraction never writes
+  // an order — it only pre-fills this form.
+  const [referral, setReferral] = useState("");
+  const [extracting, setExtracting] = useState(false);
+  const [draft, setDraft] = useState<ExtractedOrder | null>(null);
+  const [extractError, setExtractError] = useState<string | null>(null);
+
+  async function extract() {
+    if (!referral.trim() || extracting) return;
+    setExtracting(true);
+    setExtractError(null);
+    try {
+      const res = await fetch("/api/extract-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: referral }),
+      });
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.error ?? "extraction failed");
+      const d = json.draft as ExtractedOrder;
+      setDraft(d);
+      setSelected(new Set(d.items.map((i) => i.value)));
+      setUrgency(d.urgency.value);
+      if (d.patientId) setPatientId(d.patientId.value);
+      if (d.targetHoursFromNow) {
+        const t = new Date(Date.now() + d.targetHoursFromNow.value * 3600_000);
+        t.setMinutes(0, 0, 0);
+        setTargetAt(t.toISOString().slice(0, 16));
+      }
+    } catch (err) {
+      setExtractError(err instanceof Error ? err.message : "extraction failed");
+    } finally {
+      setExtracting(false);
+    }
+  }
+
+  // hcpcs → confidence, for the chips on the equipment list.
+  const itemConfidence = useMemo(
+    () => new Map((draft?.items ?? []).map((i) => [i.value, i.confidence])),
+    [draft],
+  );
 
   const patient = patients.find((p) => p.id === patientId);
   const items = CATALOG.filter((c) => selected.has(c.hcpcs));
@@ -121,6 +165,16 @@ export function OrderFormModal({
                   {patient?.label} · {patient?.id}
                 </span>
               )}
+              {draft &&
+                (draft.patientId ? (
+                  draft.patientId.value === patientId && (
+                    <Conf value={draft.patientId.confidence} />
+                  )
+                ) : (
+                  <span className="rounded-full bg-critical/10 px-1.5 py-0.5 text-[9px] font-semibold text-critical">
+                    no patient match — pick one
+                  </span>
+                ))}
             </div>
           </div>
           <button
@@ -130,6 +184,51 @@ export function OrderFormModal({
           >
             ✕
           </button>
+        </div>
+
+        <div className="border-b border-line bg-page px-5 py-3.5">
+          <div className="mb-1.5 flex items-center gap-2">
+            <span className="text-[9px] uppercase tracking-wide text-muted">
+              0 · Paste referral — AI intake
+            </span>
+            {draft && (
+              <span
+                className={`rounded-full px-2 py-0.5 text-[9px] font-semibold ${
+                  draft.aiUsed ? "bg-teal/15 text-teal" : "bg-cream text-ink"
+                }`}
+              >
+                {draft.aiUsed
+                  ? "Claude draft — review each field"
+                  : `keyword match only (${draft.fallbackReason ?? "AI unavailable"}) — review carefully`}
+              </span>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <textarea
+              value={referral}
+              onChange={(e) => setReferral(e.target.value)}
+              rows={draft ? 2 : 3}
+              placeholder="Paste the referral / discharge summary here — e.g. “Discharging Ruth C. home this afternoon, needs hospital bed with rails and O2 at 2L, family says by 5pm.”"
+              className="flex-1 resize-none rounded-md border border-dashed border-line-strong bg-surface px-3 py-2 text-[11px] leading-relaxed text-ink placeholder:text-muted"
+            />
+            <button
+              onClick={extract}
+              disabled={!referral.trim() || extracting}
+              className="self-start rounded-md bg-brand px-3.5 py-2 text-[11px] font-semibold text-white disabled:opacity-40"
+            >
+              {extracting ? "Extracting…" : draft ? "Re-extract" : "Extract"}
+            </button>
+          </div>
+          {extractError && (
+            <div className="mt-1.5 text-[10px] text-critical">{extractError}</div>
+          )}
+          {draft && draft.unmapped.length > 0 && (
+            <div className="mt-2 rounded-md bg-cream px-3 py-2 text-[10.5px] leading-relaxed text-ink">
+              <span className="font-semibold">Didn&apos;t map:</span>{" "}
+              {draft.unmapped.map((u) => `“${u}”`).join(" · ")} — handle these
+              yourself before placing.
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-[1.2fr_1fr] overflow-y-auto">
@@ -162,6 +261,9 @@ export function OrderFormModal({
                         {c.hcpcs}
                       </span>
                       <span className="flex-1 text-ink">{c.name}</span>
+                      {itemConfidence.has(c.hcpcs) && (
+                        <Conf value={itemConfidence.get(c.hcpcs)!} />
+                      )}
                       <span className="text-[9.5px] text-muted">
                         ${c.monthly}/mo
                         {(c.highCost || c.monthly > DON_THRESHOLD_MONTHLY) && " · DON"}
@@ -174,7 +276,10 @@ export function OrderFormModal({
 
             <div className="flex gap-3.5">
               <div className="flex-1">
-                <Field label="2 · Urgency">
+                <Field
+                  label="2 · Urgency"
+                  chip={draft ? <Conf value={draft.urgency.confidence} /> : undefined}
+                >
                   <div className="flex gap-1.5">
                     {(["routine", "stat"] as const).map((u) => (
                       <button
@@ -195,7 +300,14 @@ export function OrderFormModal({
                 </Field>
               </div>
               <div className="flex-[1.1]">
-                <Field label="3 · Target">
+                <Field
+                  label="3 · Target"
+                  chip={
+                    draft?.targetHoursFromNow ? (
+                      <Conf value={draft.targetHoursFromNow.confidence} />
+                    ) : undefined
+                  }
+                >
                   <input
                     type="datetime-local"
                     value={targetAt}
@@ -306,11 +418,39 @@ export function OrderFormModal({
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({
+  label,
+  chip,
+  children,
+}: {
+  label: string;
+  chip?: React.ReactNode;
+  children: React.ReactNode;
+}) {
   return (
     <div className="flex flex-col gap-2">
-      <div className="text-[9px] uppercase tracking-wide text-muted">{label}</div>
+      <div className="flex items-center gap-1.5 text-[9px] uppercase tracking-wide text-muted">
+        {label}
+        {chip}
+      </div>
       {children}
     </div>
+  );
+}
+
+// Per-field confidence, rendered verbatim from the extraction. Below
+// 0.7 the extractor itself says a human should look closely — so it
+// reads as a warning, not a stat.
+function Conf({ value }: { value: number }) {
+  const low = value < 0.7;
+  return (
+    <span
+      title={low ? "Low confidence — check this field" : "Extraction confidence"}
+      className={`rounded-full px-1.5 py-0.5 font-mono text-[9px] font-semibold normal-case tracking-normal ${
+        low ? "bg-critical/10 text-critical" : "bg-teal/15 text-teal"
+      }`}
+    >
+      {Math.round(value * 100)}%{low ? " ⚠" : ""}
+    </span>
   );
 }
