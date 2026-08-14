@@ -34,7 +34,7 @@ import type {
   ScreenResult,
   Vendor,
 } from "@/lib/contracts";
-import { EQUIPMENT } from "@/lib/data/seed";
+import { EQUIPMENT } from "@/lib/data/catalog";
 import {
   appendEvent,
   getInbox,

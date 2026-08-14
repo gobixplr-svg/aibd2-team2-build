@@ -23,7 +23,7 @@ import {
   isPersistent,
 } from "@/lib/data/db";
 import { engineNowWithWorld } from "@/lib/engine/clock";
-import { dailyRateUsd } from "@/lib/data/seed";
+import { dailyRateUsd } from "@/lib/data/catalog";
 
 export const dynamic = "force-dynamic";
 
