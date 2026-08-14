@@ -5,12 +5,29 @@ import type { Order, Patient, Vendor } from "@/lib/contracts";
 
 export const STUB_PATIENTS: Patient[] = [
   { id: "p1", label: "M. Checketts", familyToken: "demo-family", status: "active" },
+  { id: "p2", label: "R. Okafor", status: "active" },
+  { id: "p3", label: "L. Sorensen", status: "active" },
   { id: "p4", label: "D. Whitmer", familyToken: "demo-family-2", status: "deceased" },
+  { id: "p5", label: "J. Maughan", status: "active" },
+  { id: "p6", label: "A. Petrov", status: "active" },
 ];
 
 export function patientByFamilyToken(token: string): Patient | undefined {
   return STUB_PATIENTS.find((p) => p.familyToken === token);
 }
+
+// Rx spend has no system of record in Handoff (DME-only) — these are
+// illustrative figures for the cost-vs-care column the brief asked for
+// (DME next to meds), not computed from anything. Synthetic, like the
+// rest of the seed.
+export const RX_SPEND: Record<string, number> = {
+  p1: 1120,
+  p2: 860,
+  p3: 2004,
+  p4: 5270,
+  p5: 1940,
+  p6: 640,
+};
 
 export const STUB_VENDORS: Vendor[] = [
   {

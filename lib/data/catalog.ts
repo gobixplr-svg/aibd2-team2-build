@@ -84,3 +84,14 @@ export const donItems = (hcpcs: string[]) =>
     .map((h) => EQUIPMENT[h])
     .filter((c): c is CatalogItem => Boolean(c))
     .filter((c) => c.highCost || c.monthly > DON_THRESHOLD_MONTHLY);
+
+/** Coarse equipment category — drives the Equipment tab's filter chips. */
+export function categoryOf(hcpcs: string): string {
+  if (["E0260", "E0250"].includes(hcpcs)) return "Beds";
+  if (["E1390", "E0431"].includes(hcpcs)) return "Oxygen";
+  if (hcpcs === "E0601") return "CPAP";
+  if (hcpcs === "E0470") return "BiPAP";
+  if (["K0001", "E1130"].includes(hcpcs)) return "Wheelchair";
+  if (hcpcs === "E0143") return "Walker";
+  return "Other";
+}

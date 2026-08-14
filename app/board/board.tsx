@@ -1,20 +1,28 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
-import type { HandoffEvent, Order, OrderState, Vendor } from "@/lib/contracts";
-import { draftStatusNote } from "@/lib/ai/draft-note";
+import type { HandoffEvent, Order, OrderState, Patient, Vendor } from "@/lib/contracts";
 import { useDemoEvents } from "@/lib/demo-bus";
-import { loadExtraOrders } from "@/lib/demo-store";
+import { addExtraOrder, loadExtraOrders } from "@/lib/demo-store";
+import { DeceasedConfirm } from "./deceased-confirm";
+import type { InboxItem } from "./derive";
+import { EmrTab } from "./emr-tab";
+import { EquipmentTab } from "./equipment-tab";
+import { OrderFormModal } from "./order-form";
+import { PatientsTab } from "./patients-tab";
 
-interface InboxItem {
-  id: string;
-  kind: "hermes-action" | "don-approval" | "info";
-  title: string;
-  detail: string;
-  needsApproval: boolean;
-  resolved?: "approved" | "dismissed";
-}
+// Turn 2 of the wireframes: one page, three tabs, actions revealed by
+// expanding a row instead of a drag board + separate /board/new and
+// /emr pages. All shared state (orders, patients, the approval inbox)
+// lives here so the tabs read one source of truth.
+
+const TABS = [
+  { key: "patients", label: "Patients" },
+  { key: "equipment", label: "Equipment" },
+  { key: "emr", label: "EMR simulator" },
+] as const;
+
+type TabKey = (typeof TABS)[number]["key"];
 
 const SEED_INBOX: InboxItem[] = [
   {
@@ -35,83 +43,30 @@ const SEED_INBOX: InboxItem[] = [
   },
 ];
 
-type ColumnKey = "incoming" | "active" | "delivered" | "pickup";
+let inboxSeq = 1;
 
-const COLUMNS: {
-  key: ColumnKey;
-  title: string;
-  states: OrderState[];
-  dropState?: OrderState; // state applied when a card is dropped here
-}[] = [
-  { key: "incoming", title: "Incoming", states: ["ordered"], dropState: undefined },
-  {
-    key: "active",
-    title: "Active",
-    states: ["dispatched", "in_transit", "at_risk"],
-    dropState: "dispatched",
-  },
-  { key: "delivered", title: "Delivered", states: ["delivered"], dropState: "delivered" },
-  {
-    key: "pickup",
-    title: "Pickup",
-    states: ["pickup_triggered", "pickup_delayed"],
-    dropState: "pickup_triggered",
-  },
-];
-
-const STATE_LABEL: Record<OrderState, string> = {
-  ordered: "Ordered",
-  dispatched: "Dispatched",
-  in_transit: "In transit",
-  at_risk: "At risk",
-  delivered: "Delivered",
-  pickup_triggered: "Pickup due",
-  pickup_delayed: "Pickup delayed",
-};
-
-const STATE_BADGE: Record<OrderState, string> = {
-  ordered: "bg-status-ordered",
-  dispatched: "bg-status-dispatched",
-  in_transit: "bg-status-in-transit",
-  at_risk: "bg-status-at-risk",
-  delivered: "bg-status-delivered",
-  pickup_triggered: "bg-status-pickup-triggered",
-  pickup_delayed: "bg-status-pickup-delayed",
-};
-
-// Which drops are legal, hospice-side (mirrors TRANSITIONS at column granularity).
-const LEGAL_DROPS: Record<ColumnKey, OrderState[]> = {
-  incoming: [],
-  active: ["ordered"],
-  delivered: ["dispatched", "in_transit", "at_risk"],
-  pickup: ["delivered"],
-};
-
-interface PendingMove {
-  order: Order;
-  toColumn: ColumnKey;
-  toState: OrderState;
-  draft: string;
-}
-
-export function HospiceBoard({
+export function HospicePortal({
   initialOrders,
+  initialPatients,
   vendors,
 }: {
   initialOrders: Order[];
+  initialPatients: Patient[];
   vendors: Vendor[];
 }) {
+  const [tab, setTab] = useState<TabKey>("patients");
   const [orders, setOrders] = useState(initialOrders);
-  const [dragId, setDragId] = useState<string | null>(null);
-  const [pending, setPending] = useState<PendingMove | null>(null);
-  const [whyId, setWhyId] = useState<string | null>(null);
+  const [patients, setPatients] = useState(initialPatients);
   const [inbox, setInbox] = useState<InboxItem[]>(SEED_INBOX);
-  const [inboxOpen, setInboxOpen] = useState(false);
+  const [emrLog, setEmrLog] = useState<string[]>([]);
+  const [newOrderFor, setNewOrderFor] = useState<string | undefined>(undefined);
+  const [newOrderOpen, setNewOrderOpen] = useState(false);
+  const [deceasedFor, setDeceasedFor] = useState<string | null>(null);
 
   const vendorName = (id: string) => vendors.find((v) => v.id === id)?.name ?? id;
 
-  // Merge demo-created orders after mount (localStorage isn't available
-  // during SSR, so this can't happen in the useState initializer).
+  // Demo-created orders persist across navigation (localStorage isn't
+  // available during SSR, so this can't run in the useState initializer).
   useEffect(() => {
     const extra = loadExtraOrders();
     if (extra.length)
@@ -126,333 +81,178 @@ export function HospiceBoard({
     }, []),
   );
 
-  // EMR simulator events (same-browser demo bus): a deceased status
-  // auto-triggers pickup on the patient's delivered equipment — the
-  // fallback path behind the nurse-initiated trigger.
-  useDemoEvents(
-    useCallback((e: HandoffEvent) => {
-      if (e.meta.eventType !== "patientStatus.deceased") return;
-      const patientId = e.payload.patientId as string;
-      const now = new Date().toISOString();
-      setOrders((os) =>
-        os.map((o) =>
-          o.patientId === patientId && o.state === "delivered"
-            ? {
-                ...o,
-                state: "pickup_triggered" as OrderState,
-                pickup: {
-                  triggeredAt: now,
-                  triggeredBy: "emr" as const,
-                  dueAt: new Date(Date.now() + 24 * 3600_000).toISOString(),
-                },
-                timestamps: { ...o.timestamps, pickup_triggered: now },
-              }
-            : o,
-        ),
-      );
-      setInbox((ib) => [
-        {
-          id: `inbox-emr-${Date.now()}`,
-          kind: "info",
-          title: `EMR: ${e.payload.patientLabel} marked deceased`,
-          detail:
-            "Pickup auto-triggered on delivered equipment (24h window started). Family notification drafted — review before send.",
-          needsApproval: false,
-        },
-        ...ib,
-      ]);
-      setInboxOpen(true);
-    }, []),
-  );
-
-  function resolveInbox(id: string, resolution: "approved" | "dismissed") {
-    setInbox((ib) => ib.map((i) => (i.id === id ? { ...i, resolved: resolution } : i)));
+  function placeOrder(order: Order) {
+    setOrders((os) => [...os, order]);
+    addExtraOrder(order); // cross-tab: the vendor queue picks this up over the demo bus
+    setNewOrderOpen(false);
   }
 
-  const openCount = inbox.filter((i) => !i.resolved && i.needsApproval).length;
-
-  function onDrop(col: (typeof COLUMNS)[number]) {
-    const order = orders.find((o) => o.id === dragId);
-    setDragId(null);
-    if (!order || !col.dropState) return;
-    if (!LEGAL_DROPS[col.key].includes(order.state)) return;
-    setPending({
-      order,
-      toColumn: col.key,
-      toState: col.dropState,
-      draft: draftStatusNote(order, col.dropState),
-    });
+  function addNote(orderId: string, note: string) {
+    setOrders((os) => (os.map((o) => (o.id === orderId ? { ...o, note } : o))));
   }
 
-  function confirmMove(note: string) {
-    if (!pending) return;
+  function messageFamily(patientId: string) {
+    const patient = patients.find((p) => p.id === patientId);
+    if (!patient) return;
+    setInbox((ib) => [
+      {
+        id: `inbox-family-${inboxSeq++}`,
+        kind: "family-message",
+        title: `Draft message to ${patient.label}'s family`,
+        detail: `Claude-drafted update ready to review for ${patient.label} — a person sends it, never Hermes alone.`,
+        needsApproval: true,
+      },
+      ...ib,
+    ]);
+    setTab("equipment");
+  }
+
+  function requestReroute(orderId: string) {
+    const order = orders.find((o) => o.id === orderId);
+    if (!order) return;
+    setInbox((ib) => [
+      {
+        id: `inbox-reroute-${inboxSeq++}`,
+        kind: "reroute",
+        title: `Reroute ${order.id} to backup vendor?`,
+        detail: `${order.patientLabel} — ${order.items.map((i) => i.name).join(", ")}, currently with ${vendorName(order.vendorId)}. Reroute posts here as an approval; a person still taps it.`,
+        needsApproval: true,
+      },
+      ...ib,
+    ]);
+  }
+
+  function approveInbox(id: string) {
+    setInbox((ib) => ib.map((i) => (i.id === id ? { ...i, resolved: "approved" } : i)));
+  }
+
+  function dismissInbox(id: string) {
+    setInbox((ib) => ib.map((i) => (i.id === id ? { ...i, resolved: "dismissed" } : i)));
+  }
+
+  function triggerPickup(patientId: string, triggeredBy: "nurse" | "emr") {
     const now = new Date().toISOString();
+    const dueAt = new Date(Date.now() + 24 * 3600_000).toISOString();
     setOrders((os) =>
       os.map((o) =>
-        o.id === pending.order.id
+        o.patientId === patientId && o.state === "delivered"
           ? {
               ...o,
-              state: pending.toState,
-              note: note || o.note,
-              timestamps: { ...o.timestamps, [pending.toState]: now },
-              pickup:
-                pending.toState === "pickup_triggered"
-                  ? {
-                      triggeredAt: now,
-                      triggeredBy: "nurse" as const,
-                      dueAt: new Date(Date.now() + 24 * 3600_000).toISOString(),
-                    }
-                  : o.pickup,
+              state: "pickup_triggered" as OrderState,
+              pickup: { triggeredAt: now, triggeredBy, dueAt },
+              timestamps: { ...o.timestamps, pickup_triggered: now },
             }
           : o,
       ),
     );
-    setPending(null);
   }
 
+  function confirmPassing() {
+    if (!deceasedFor) return;
+    const patient = patients.find((p) => p.id === deceasedFor);
+    setPatients((ps) => ps.map((p) => (p.id === deceasedFor ? { ...p, status: "deceased" } : p)));
+    triggerPickup(deceasedFor, "nurse");
+    setInbox((ib) => [
+      {
+        id: `inbox-passing-${inboxSeq++}`,
+        kind: "info",
+        title: `${patient?.label ?? "Patient"} — passing recorded by nurse`,
+        detail: "Pickup triggered on delivered equipment (24h window started).",
+        needsApproval: false,
+      },
+      ...ib,
+    ]);
+    setDeceasedFor(null);
+  }
+
+  function fireEmrEvent(patient: Patient, type: string, to: Patient["status"]) {
+    setPatients((ps) => ps.map((p) => (p.id === patient.id ? { ...p, status: to } : p)));
+    if (type === "deceased") triggerPickup(patient.id, "emr");
+    setEmrLog((l) =>
+      [
+        `${new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" })} → patientStatus.${type} · ${patient.label}`,
+        ...l,
+      ].slice(0, 8),
+    );
+  }
+
+  const deceasedPatient = deceasedFor ? patients.find((p) => p.id === deceasedFor) : undefined;
+
   return (
-    <main className="flex-1 p-3 lg:p-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 items-start">
-      <div className="md:col-span-2 xl:col-span-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Link
-            href="/board/new"
-            className="rounded-md bg-brand px-3 py-2 text-sm font-semibold text-white"
-          >
-            + New order
-          </Link>
-          <div className="hidden sm:block text-xs text-muted">
-            Drag a card to advance it. Every move gets a status note — AI
-            drafts, you approve.
-          </div>
-        </div>
-        <button
-          onClick={() => setInboxOpen((v) => !v)}
-          className={`relative rounded-md px-3 py-2 text-sm font-semibold ${
-            openCount > 0
-              ? "bg-warning/20 text-ink border border-warning"
-              : "border border-line text-ink-soft"
-          }`}
-        >
-          Approvals
-          {openCount > 0 && (
-            <span className="ml-1.5 rounded-full bg-critical px-1.5 py-0.5 text-[11px] font-bold text-white">
-              {openCount}
-            </span>
-          )}
-        </button>
-      </div>
-
-      {inboxOpen && (
-        <div className="md:col-span-2 xl:col-span-4 rounded-lg border border-line bg-surface p-3 flex flex-col gap-2">
-          <div className="text-xs font-semibold uppercase tracking-wider text-muted">
-            Approval inbox — Hermes proposes, you decide
-          </div>
-          {inbox.map((item) => (
-            <div
-              key={item.id}
-              className={`rounded-md border p-2.5 ${
-                item.resolved
-                  ? "border-line opacity-60"
-                  : item.needsApproval
-                    ? "border-warning bg-warning/5"
-                    : "border-line bg-cream/50"
-              }`}
-            >
-              <div className="flex items-baseline justify-between gap-2">
-                <span className="text-sm font-semibold text-ink">{item.title}</span>
-                <span className="text-[10px] uppercase tracking-wide text-muted">
-                  {item.kind === "hermes-action"
-                    ? "Hermes"
-                    : item.kind === "don-approval"
-                      ? "DON approval"
-                      : "FYI"}
-                </span>
-              </div>
-              <p className="mt-1 text-xs text-ink-soft">{item.detail}</p>
-              {item.resolved ? (
-                <div className="mt-1.5 text-[11px] font-semibold text-muted">
-                  {item.resolved === "approved" ? "✓ Approved" : "Dismissed"}
-                </div>
-              ) : (
-                item.needsApproval && (
-                  <div className="mt-2 flex gap-2">
-                    <button
-                      onClick={() => resolveInbox(item.id, "approved")}
-                      className="rounded-md bg-teal px-3 py-1.5 text-xs font-semibold text-white"
-                    >
-                      Approve
-                    </button>
-                    <button
-                      onClick={() => resolveInbox(item.id, "dismissed")}
-                      className="rounded-md border border-line px-3 py-1.5 text-xs font-semibold text-ink-soft"
-                    >
-                      Dismiss
-                    </button>
-                  </div>
-                )
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {COLUMNS.map((col) => {
-        const cards = orders.filter((o) => col.states.includes(o.state));
-        return (
-          <section
-            key={col.key}
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={() => onDrop(col)}
-            className="rounded-lg bg-page border border-line flex flex-col gap-2 p-2 min-h-40"
-          >
-            <h2 className="px-1 text-xs font-semibold uppercase tracking-wider text-muted">
-              {col.title} ({cards.length})
-            </h2>
-            {cards.map((o) => (
-              <article
-                key={o.id}
-                draggable
-                onDragStart={() => setDragId(o.id)}
-                className={`rounded-lg bg-surface border p-3 shadow-sm cursor-grab active:cursor-grabbing ${
-                  o.state === "at_risk" ? "border-warning" : "border-line"
+    <div className="flex flex-col min-h-dvh w-full">
+      <header className="bg-navy text-white">
+        <div className="mx-auto flex w-full max-w-7xl items-center gap-6 px-4">
+          <div className="py-3.5 text-[15px] font-bold">Handoff</div>
+          <nav className="flex gap-0.5 self-stretch text-xs">
+            {TABS.map((t) => (
+              <button
+                key={t.key}
+                onClick={() => setTab(t.key)}
+                className={`border-b-[3px] px-4 py-4 ${
+                  tab === t.key
+                    ? "border-brand font-medium text-white"
+                    : "border-transparent text-white/60"
                 }`}
               >
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <span
-                    className={`${STATE_BADGE[o.state]} rounded-sm px-1.5 py-0.5 text-[11px] font-semibold text-white`}
-                  >
-                    {STATE_LABEL[o.state]}
-                  </span>
-                  {o.urgency === "stat" && (
-                    <span className="rounded-sm bg-navy px-1.5 py-0.5 text-[11px] font-bold text-white">
-                      STAT
-                    </span>
-                  )}
-                  {o.risk && (
-                    <button
-                      onClick={() => setWhyId(whyId === o.id ? null : o.id)}
-                      className="ml-auto rounded-sm bg-warning/20 px-1.5 py-0.5 text-[11px] font-semibold text-ink"
-                    >
-                      why? ({o.risk.score})
-                    </button>
-                  )}
-                </div>
-
-                <div className="mt-1.5 text-sm font-semibold text-ink">
-                  {o.patientLabel}
-                </div>
-                <div className="text-xs text-muted">{vendorName(o.vendorId)}</div>
-
-                <ul className="mt-1">
-                  {o.items.map((it) => (
-                    <li key={it.hcpcs} className="text-xs text-ink-soft">
-                      <span className="font-mono text-[10px] text-muted mr-1">
-                        {it.hcpcs}
-                      </span>
-                      {it.name}
-                    </li>
-                  ))}
-                </ul>
-
-                {whyId === o.id && o.risk && (
-                  <div className="mt-2 rounded-md border border-warning bg-warning/10 p-2">
-                    <div className="text-[11px] font-bold uppercase tracking-wide text-ink">
-                      Why flagged
-                    </div>
-                    <ul className="mt-1 flex flex-col gap-1">
-                      {o.risk.reasons.map((r) => (
-                        <li key={r} className="text-xs text-ink-soft">
-                          • {r}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                {o.note && (
-                  <div className="mt-2 rounded-md bg-cream px-2 py-1 text-[11px] text-ink-soft">
-                    {o.note}
-                  </div>
-                )}
-              </article>
+                {t.label}
+              </button>
             ))}
-            {cards.length === 0 && (
-              <div className="rounded-md border border-dashed border-line-strong px-2 py-5 text-center text-xs text-muted">
-                Drop orders here
-              </div>
-            )}
-          </section>
-        );
-      })}
+          </nav>
+          <div className="ml-auto flex items-center gap-2.5 py-3.5 text-[11px] text-white/70">
+            <span>M. Ruiz, RN · case manager</span>
+            <span className="inline-block h-[26px] w-[26px] rounded-full bg-secondary" />
+          </div>
+        </div>
+      </header>
 
-      {pending && (
-        <NoteModal
-          pending={pending}
-          onConfirm={confirmMove}
-          onCancel={() => setPending(null)}
+      <div className="mx-auto w-full max-w-7xl flex-1 bg-surface">
+        {tab === "patients" && (
+          <PatientsTab
+            patients={patients}
+            orders={orders}
+            vendorName={vendorName}
+            onNewOrder={(patientId) => {
+              setNewOrderFor(patientId);
+              setNewOrderOpen(true);
+            }}
+            onRecordPassing={(patientId) => setDeceasedFor(patientId)}
+            onAddNote={addNote}
+            onMessageFamily={messageFamily}
+          />
+        )}
+        {tab === "equipment" && (
+          <EquipmentTab
+            orders={orders}
+            vendorName={vendorName}
+            inbox={inbox}
+            onApprove={approveInbox}
+            onDismiss={dismissInbox}
+            onAddNote={addNote}
+            onMessageFamily={messageFamily}
+            onRequestReroute={requestReroute}
+          />
+        )}
+        {tab === "emr" && <EmrTab patients={patients} log={emrLog} onFire={fireEmrEvent} />}
+      </div>
+
+      {newOrderOpen && (
+        <OrderFormModal
+          vendors={vendors}
+          patients={patients}
+          initialPatientId={newOrderFor}
+          onPlace={placeOrder}
+          onCancel={() => setNewOrderOpen(false)}
         />
       )}
-    </main>
-  );
-}
 
-function NoteModal({
-  pending,
-  onConfirm,
-  onCancel,
-}: {
-  pending: PendingMove;
-  onConfirm: (note: string) => void;
-  onCancel: () => void;
-}) {
-  const [note, setNote] = useState(pending.draft);
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center sm:justify-center bg-navy/60"
-      onClick={onCancel}
-    >
-      <div
-        className="w-full max-w-md mx-auto rounded-t-xl sm:rounded-xl bg-surface p-4 pb-8 sm:pb-4 flex flex-col gap-3"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div>
-          <h2 className="text-base font-bold text-ink">
-            Move to {STATE_LABEL[pending.toState]}
-          </h2>
-          <p className="text-xs text-muted">
-            {pending.order.patientLabel} ·{" "}
-            {pending.order.items.map((i) => i.name).join(", ")}
-          </p>
-        </div>
-        <label className="flex flex-col gap-1">
-          <span className="text-xs font-semibold text-ink-soft">
-            Status note{" "}
-            <span className="font-normal text-muted">
-              (AI first draft — edit or submit as-is)
-            </span>
-          </span>
-          <textarea
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            rows={3}
-            className="rounded-md border border-line px-3 py-2 text-sm text-ink"
-          />
-        </label>
-        <div className="flex gap-2">
-          <button
-            onClick={onCancel}
-            className="flex-1 rounded-md border border-line px-3 py-3 text-sm font-semibold text-ink-soft"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={() => onConfirm(note.trim())}
-            className="flex-[2] rounded-md bg-brand px-3 py-3 text-sm font-semibold text-white active:bg-brand-alt"
-          >
-            Confirm move
-          </button>
-        </div>
-      </div>
+      {deceasedPatient && (
+        <DeceasedConfirm
+          patient={deceasedPatient}
+          orders={orders.filter((o) => o.patientId === deceasedPatient.id)}
+          onConfirm={confirmPassing}
+          onCancel={() => setDeceasedFor(null)}
+        />
+      )}
     </div>
   );
 }
