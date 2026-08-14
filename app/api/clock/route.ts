@@ -16,10 +16,16 @@
 import { NextResponse } from "next/server";
 import { getWorld, putWorld } from "@/lib/data/db";
 import { freshClock, jumpHours, setSpeed, virtualNow } from "@/lib/engine/clock";
+import { hermesAuthorized } from "@/lib/hermes-auth";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
+  // Same lock as /api/tick — moving the demo clock is as load-bearing
+  // as ticking it. GET (read-only status) stays open.
+  if (!hermesAuthorized(req)) {
+    return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 });
+  }
   try {
     const body = (await req.json().catch(() => ({}))) as {
       speed?: number;

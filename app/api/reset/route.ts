@@ -20,10 +20,16 @@ import {
 } from "@/lib/data/db";
 import { freshClock } from "@/lib/engine/clock";
 import { buildSeed } from "@/lib/data/seed";
+import { hermesAuthorized } from "@/lib/hermes-auth";
 
 export const dynamic = "force-dynamic";
 
-export async function POST() {
+export async function POST(req: Request) {
+  // Same lock as /api/tick. An unguarded reset means anyone with the
+  // URL can wipe the world mid-pitch.
+  if (!hermesAuthorized(req)) {
+    return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 });
+  }
   try {
     const realNow = Date.now();
     await wipe();
