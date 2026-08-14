@@ -39,7 +39,9 @@ export function ControlPanel() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    setKey(sessionStorage.getItem("hermes-key") ?? "");
+    // Deferred — same never-a-sync-setState convention as use-world.ts.
+    const id = setTimeout(() => setKey(sessionStorage.getItem("hermes-key") ?? ""), 0);
+    return () => clearTimeout(id);
   }, []);
 
   const saveKey = (k: string) => {
@@ -88,9 +90,12 @@ export function ControlPanel() {
   }, []);
 
   useEffect(() => {
-    refreshClock();
+    const kick = setTimeout(refreshClock, 0);
     const id = setInterval(refreshClock, 1000);
-    return () => clearInterval(id);
+    return () => {
+      clearTimeout(kick);
+      clearInterval(id);
+    };
   }, [refreshClock]);
 
   async function doTick() {
