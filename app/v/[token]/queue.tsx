@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import type { Order, OrderState } from "@/lib/contracts";
+import { useCallback, useEffect, useState } from "react";
+import type { HandoffEvent, Order, OrderState } from "@/lib/contracts";
+import { useDemoEvents } from "@/lib/demo-bus";
+import { loadExtraOrders } from "@/lib/demo-store";
 import { PodSheet, type PodResult } from "./pod-sheet";
 
 const ETA_CHOICES = [
@@ -48,6 +50,28 @@ export function VendorQueue({ initialOrders }: { initialOrders: Order[] }) {
   const [orders, setOrders] = useState(initialOrders);
   const [accepting, setAccepting] = useState<string | null>(null);
   const [sheet, setSheet] = useState<SheetTarget>(null);
+
+  const vendorId = initialOrders[0]?.vendorId;
+
+  // Demo-created orders: merge persisted ones after mount, receive live
+  // ones via the demo bus. (Dan, additive — see PR; Postgres replaces.)
+  useEffect(() => {
+    const extra = loadExtraOrders().filter((e) => !vendorId || e.vendorId === vendorId);
+    if (extra.length)
+      setOrders((os) => [...os, ...extra.filter((e) => !os.some((o) => o.id === e.id))]);
+  }, [vendorId]);
+
+  useDemoEvents(
+    useCallback(
+      (e: HandoffEvent) => {
+        if (e.meta.eventType !== "newDmeOrder") return;
+        const order = e.payload.order as Order;
+        if (vendorId && order.vendorId !== vendorId) return;
+        setOrders((os) => (os.some((o) => o.id === order.id) ? os : [...os, order]));
+      },
+      [vendorId],
+    ),
+  );
 
   function update(id: string, patch: Partial<Order>) {
     setOrders((os) => os.map((o) => (o.id === id ? { ...o, ...patch } : o)));
