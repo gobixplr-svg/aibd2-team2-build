@@ -1,8 +1,37 @@
 "use client";
 
-import { useState } from "react";
-import type { Order, OrderState, Vendor } from "@/lib/contracts";
+import { useCallback, useState } from "react";
+import type { HandoffEvent, Order, OrderState, Vendor } from "@/lib/contracts";
 import { draftStatusNote } from "@/lib/ai/draft-note";
+import { useDemoEvents } from "@/lib/demo-bus";
+
+interface InboxItem {
+  id: string;
+  kind: "hermes-action" | "don-approval" | "info";
+  title: string;
+  detail: string;
+  needsApproval: boolean;
+  resolved?: "approved" | "dismissed";
+}
+
+const SEED_INBOX: InboxItem[] = [
+  {
+    id: "inbox-1",
+    kind: "hermes-action",
+    title: "Reassign STAT oxygen order to backup vendor?",
+    detail:
+      "ord-1003 (J. Maughan) is flagged at 82: Great Basin DME's ETA misses the 4:30 discharge by 54 min and dispatch is unconfirmed. Wasatch Medical Supply shows same-day capacity. Hermes prepared the reassignment — approve to execute.",
+    needsApproval: true,
+  },
+  {
+    id: "inbox-2",
+    kind: "don-approval",
+    title: "High-cost item awaiting DON approval",
+    detail:
+      "Low-air-loss mattress (E0277, ~$68/mo rental) requested for R. Okafor by case manager. Above the $50/mo auto-approve threshold.",
+    needsApproval: true,
+  },
+];
 
 type ColumnKey = "incoming" | "active" | "delivered" | "pickup";
 
@@ -74,8 +103,55 @@ export function HospiceBoard({
   const [dragId, setDragId] = useState<string | null>(null);
   const [pending, setPending] = useState<PendingMove | null>(null);
   const [whyId, setWhyId] = useState<string | null>(null);
+  const [inbox, setInbox] = useState<InboxItem[]>(SEED_INBOX);
+  const [inboxOpen, setInboxOpen] = useState(false);
 
   const vendorName = (id: string) => vendors.find((v) => v.id === id)?.name ?? id;
+
+  // EMR simulator events (same-browser demo bus): a deceased status
+  // auto-triggers pickup on the patient's delivered equipment — the
+  // fallback path behind the nurse-initiated trigger.
+  useDemoEvents(
+    useCallback((e: HandoffEvent) => {
+      if (e.meta.eventType !== "patientStatus.deceased") return;
+      const patientId = e.payload.patientId as string;
+      const now = new Date().toISOString();
+      setOrders((os) =>
+        os.map((o) =>
+          o.patientId === patientId && o.state === "delivered"
+            ? {
+                ...o,
+                state: "pickup_triggered" as OrderState,
+                pickup: {
+                  triggeredAt: now,
+                  triggeredBy: "emr" as const,
+                  dueAt: new Date(Date.now() + 24 * 3600_000).toISOString(),
+                },
+                timestamps: { ...o.timestamps, pickup_triggered: now },
+              }
+            : o,
+        ),
+      );
+      setInbox((ib) => [
+        {
+          id: `inbox-emr-${Date.now()}`,
+          kind: "info",
+          title: `EMR: ${e.payload.patientLabel} marked deceased`,
+          detail:
+            "Pickup auto-triggered on delivered equipment (24h window started). Family notification drafted — review before send.",
+          needsApproval: false,
+        },
+        ...ib,
+      ]);
+      setInboxOpen(true);
+    }, []),
+  );
+
+  function resolveInbox(id: string, resolution: "approved" | "dismissed") {
+    setInbox((ib) => ib.map((i) => (i.id === id ? { ...i, resolved: resolution } : i)));
+  }
+
+  const openCount = inbox.filter((i) => !i.resolved && i.needsApproval).length;
 
   function onDrop(col: (typeof COLUMNS)[number]) {
     const order = orders.find((o) => o.id === dragId);
@@ -118,6 +194,82 @@ export function HospiceBoard({
 
   return (
     <main className="flex-1 p-3 lg:p-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 items-start">
+      <div className="md:col-span-2 xl:col-span-4 flex items-center justify-between">
+        <div className="text-xs text-muted">
+          Drag a card to advance it. Every move gets a status note — AI drafts,
+          you approve.
+        </div>
+        <button
+          onClick={() => setInboxOpen((v) => !v)}
+          className={`relative rounded-md px-3 py-2 text-sm font-semibold ${
+            openCount > 0
+              ? "bg-warning/20 text-ink border border-warning"
+              : "border border-line text-ink-soft"
+          }`}
+        >
+          Approvals
+          {openCount > 0 && (
+            <span className="ml-1.5 rounded-full bg-critical px-1.5 py-0.5 text-[11px] font-bold text-white">
+              {openCount}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {inboxOpen && (
+        <div className="md:col-span-2 xl:col-span-4 rounded-lg border border-line bg-surface p-3 flex flex-col gap-2">
+          <div className="text-xs font-semibold uppercase tracking-wider text-muted">
+            Approval inbox — Hermes proposes, you decide
+          </div>
+          {inbox.map((item) => (
+            <div
+              key={item.id}
+              className={`rounded-md border p-2.5 ${
+                item.resolved
+                  ? "border-line opacity-60"
+                  : item.needsApproval
+                    ? "border-warning bg-warning/5"
+                    : "border-line bg-cream/50"
+              }`}
+            >
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="text-sm font-semibold text-ink">{item.title}</span>
+                <span className="text-[10px] uppercase tracking-wide text-muted">
+                  {item.kind === "hermes-action"
+                    ? "Hermes"
+                    : item.kind === "don-approval"
+                      ? "DON approval"
+                      : "FYI"}
+                </span>
+              </div>
+              <p className="mt-1 text-xs text-ink-soft">{item.detail}</p>
+              {item.resolved ? (
+                <div className="mt-1.5 text-[11px] font-semibold text-muted">
+                  {item.resolved === "approved" ? "✓ Approved" : "Dismissed"}
+                </div>
+              ) : (
+                item.needsApproval && (
+                  <div className="mt-2 flex gap-2">
+                    <button
+                      onClick={() => resolveInbox(item.id, "approved")}
+                      className="rounded-md bg-teal px-3 py-1.5 text-xs font-semibold text-white"
+                    >
+                      Approve
+                    </button>
+                    <button
+                      onClick={() => resolveInbox(item.id, "dismissed")}
+                      className="rounded-md border border-line px-3 py-1.5 text-xs font-semibold text-ink-soft"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                )
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
       {COLUMNS.map((col) => {
         const cards = orders.filter((o) => col.states.includes(o.state));
         return (
