@@ -245,9 +245,9 @@ export function screen(
       codes.push("pickup_predicted_breach");
       score += 45 + Math.min(20, f.pickupPredictedBreachHours * 2);
       reasons.push(
-        `${vendor?.name ?? "Vendor"} averages ${Math.round(f.vendorAvgPickupHours)}h on pickups ` +
-          `against a ${p.pickupSlaHours}h window — predicted breach by ` +
-          `${Math.round(f.pickupPredictedBreachHours)}h, flagged before anything is late`,
+        `${vendor?.name ?? "Vendor"} averages ${fmtH(f.vendorAvgPickupHours)} on pickups ` +
+          `against this order's ${fmtH(f.slaWindowHours)} ${W} window — predicted breach by ` +
+          `${fmtH(f.pickupPredictedBreachHours)}, flagged before anything is late`,
       );
     }
     // T+2h — nobody at the vendor has even looked at it.
@@ -390,6 +390,19 @@ function proposeAction(
     };
   }
 
+  // Knowing it WILL miss outranks not having heard back yet — this sits
+  // above the silent rungs deliberately.
+  if (reasonCodes.includes("pickup_predicted_breach")) {
+    return {
+      tier: "consequential",
+      proposedAction: "preempt_pickup_breach",
+      title: `Predicted late pickup — ${order.patientLabel}`,
+      detail:
+        `${vendor?.name ?? "This vendor"} averages ${Math.round(features.vendorAvgPickupHours)}h on ` +
+        `retrievals against a ${Math.round(features.slaWindowHours)}h window. Reassigning now keeps it inside.`,
+    };
+  }
+
   // The silent rungs. Hermes chases the vendor; nobody is told.
   if (
     reasonCodes.includes("pickup_no_window") ||
@@ -405,16 +418,6 @@ function proposeAction(
     };
   }
 
-  if (reasonCodes.includes("pickup_predicted_breach")) {
-    return {
-      tier: "consequential",
-      proposedAction: "preempt_pickup_breach",
-      title: `Predicted late pickup — ${order.patientLabel}`,
-      detail:
-        `${vendor?.name ?? "This vendor"} averages ${Math.round(features.vendorAvgPickupHours)}h ` +
-        `on retrievals. Reassigning now keeps it inside the window.`,
-    };
-  }
 
   if (reasonCodes.includes("eta_past_deadline")) {
     return {
