@@ -325,18 +325,32 @@ export type MessageCategory =
 export interface InboundMessage {
   id: string;
   patientId: string;
+  patientLabel?: string;
+  from?: string; // "daughter", "spouse" — synthetic label only
   body: string;
   receivedAt: string;
   triage?: MessageTriage;
 }
 
+// What Hermes proposes doing about an inbound message. Enum, not free
+// text — the model picks from this list and code maps each to a tier,
+// so it cannot invent an action or grant itself autonomy.
+export type MessageAction =
+  | "dispatch_replacement" // broken/unsafe equipment — send another
+  | "escalate_on_call_nurse" // clinical or distress, needs a person now
+  | "expedite_pickup" // family asking for retrieval sooner
+  | "answer_from_status" // we already know the answer (window, ETA)
+  | "reply_needs_human"; // anything else a person should word themselves
+
 export interface MessageTriage {
   category: MessageCategory;
   urgency: "immediate" | "same_day" | "routine";
-  safetyFlag: boolean; // oxygen/bed failure — safety, not just service
-  recommendedAction: string;
+  safetyFlag: boolean; // life-sustaining equipment failure — safety, not service
+  recommendedAction: MessageAction;
+  rationale: string; // one sentence, grounded in what the family wrote
   reasonCodes: string[];
   confidence: number; // < 0.7 escalates to a human instead of asserting
+  aiUsed: boolean; // false = keyword fallback ran; never presented as certain
 }
 
 // ── Token accounting ─────────────────────────────────────────
