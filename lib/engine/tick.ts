@@ -41,11 +41,13 @@ import {
   getOrders,
   getVendors,
   getWorld,
+  appendLedger,
   putInboxItems,
   putOrders,
   putWorld,
 } from "@/lib/data/db";
 import { transition } from "@/lib/engine/transition";
+import { triage } from "@/lib/engine/triage";
 
 const MIN = 60_000;
 const H = 3_600_000;
@@ -281,6 +283,7 @@ export interface TickResult {
   flagged: string[];
   inboxCreated: number;
   aiUsed: boolean;
+  fallbackReason?: string;
   tokensUsed: number;
   costUsd: number;
 }
@@ -319,10 +322,25 @@ export async function tick(now: number): Promise<TickResult> {
     }
   }
 
-  // Stage 3 lands here on Saturday. Until then — and whenever
-  // policy.useAiTriage is off — the deterministic screen IS the
-  // product. That's the rules-only baseline, not a placeholder.
-  const aiUsed = false;
+  // ── stage 3 ──
+  // One call for the whole interesting set, not one per order.
+  // Ranking is the part a threshold cannot do: which do you fix first
+  // when two are failing and there's one on-call nurse?
+  //
+  // triage() never throws. Toggle off, no key, timeout, refusal, bad
+  // output — all of them return the deterministic ranking and the tick
+  // continues. The rules-only path is always the floor.
+  const triaged = await triage(
+    screened.map((s) => ({
+      features: s.features,
+      codes: s.reasonCodes,
+      score: s.score,
+    })),
+    policy.useAiTriage,
+  );
+  const aiUsed = triaged.aiUsed;
+  if (triaged.ledger) await appendLedger(triaged.ledger);
+  const byOrder = new Map(triaged.actions.map((a) => [a.orderId, a]));
 
   // ── stage 4 + 5 ──
   const touched: Order[] = [];
@@ -359,7 +377,16 @@ export async function tick(now: number): Promise<TickResult> {
 
     touched.push(next);
 
-    const proposal = proposeAction(s, vendor);
+    // Deterministic proposal is the baseline. Stage 3 may override the
+    // action and supplies the ranking — but the TIER is always decided
+    // in code, never by the model, so the oversight level can't be
+    // argued down by whatever the model felt like returning.
+    const base = proposeAction(s, vendor);
+    const ai = byOrder.get(s.order.id);
+    const proposal = ai
+      ? { ...base, tier: ai.tier, proposedAction: ai.action }
+      : base;
+
     const dupe = inbox.some(
       (i) =>
         i.orderId === s.order.id &&
@@ -373,14 +400,29 @@ export async function tick(now: number): Promise<TickResult> {
       createdAt: nowIso,
       orderId: s.order.id,
       patientId: s.order.patientId,
-      reasons,
+      reasons: ai
+        ? // Label the model's sentence so a judge reading the panel can
+          // tell computed fact from model judgement at a glance.
+          [...reasons, `Hermes triage (rank ${ai.rank}, confidence ${ai.confidence.toFixed(2)}): ${ai.rationale}`]
+        : reasons,
       reasonCodes: s.reasonCodes,
       features: s.features,
-      status: proposal.tier === "reversible" ? "auto_executed" : "pending",
+      // Low confidence never auto-executes, whatever the tier says.
+      status:
+        proposal.tier === "reversible" && (ai?.confidence ?? 1) >= 0.7
+          ? "auto_executed"
+          : "pending",
       source: "hermes",
       ...proposal,
     });
   }
+
+  // Rank order: what a nurse should look at first.
+  newItems.sort(
+    (a, b) =>
+      (byOrder.get(a.orderId ?? "")?.rank ?? 99) -
+      (byOrder.get(b.orderId ?? "")?.rank ?? 99),
+  );
 
   if (touched.length) await putOrders(touched);
   if (newItems.length) await putInboxItems(newItems);
@@ -404,7 +446,10 @@ export async function tick(now: number): Promise<TickResult> {
     flagged: screened.map((s) => s.order.id),
     inboxCreated: newItems.length,
     aiUsed,
-    tokensUsed: 0,
-    costUsd: 0,
+    fallbackReason: triaged.fallbackReason,
+    tokensUsed: triaged.ledger
+      ? triaged.ledger.inputTokens + triaged.ledger.outputTokens
+      : 0,
+    costUsd: triaged.ledger ? Number(triaged.ledger.costUsd.toFixed(5)) : 0,
   };
 }
