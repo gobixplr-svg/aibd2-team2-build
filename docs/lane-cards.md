@@ -1,15 +1,15 @@
 # Lane cards — who owns what (one card per person)
 
-*Companion to [`kickoff-work-breakdown.md`](https://github.com/gobixplr-svg/ai-builder-day-2/blob/main/prep/betterrx/kickoff-work-breakdown.md). Recommended assignment below — **Will on the engine since he designed it** (https://github.com/gobixplr-svg/ai-builder-day-2/blob/main/prep/betterrx/hermes-engine-design.md), Dan on the hospice side (highest judging weight, drives the demo), Garrett on vendor + demo assets. Swap by preference in 30 seconds at kickoff; the cards move with the lane, not the person.*
+*Companion to [`kickoff-work-breakdown.md`](https://github.com/gobixplr-svg/ai-builder-day-2/blob/main/prep/betterrx/kickoff-work-breakdown.md). **Assignment locked at kickoff: Will = engine (he designed it, [`hermes-engine-design.md`](https://github.com/gobixplr-svg/ai-builder-day-2/blob/main/prep/betterrx/hermes-engine-design.md)) · Garrett = hospice side · Dan = vendor side + demo assets.** Dan drives the pitch and demo Saturday regardless of lane.*
 
 ## Repo layout (agreed once, prevents collisions)
 
 ```
 app/
-  (hospice)/            ← DAN: patient list, order form, board, inbox, cost view
-  v/[token]/            ← GARRETT: vendor queue, accept, POD, pickups
-  f/[token]/            ← DAN: family tracker (read-only)
-  emr/                  ← DAN: EMR simulator panel
+  (hospice)/            ← GARRETT: patient list, order form, board, inbox, cost view
+  v/[token]/            ← DAN: vendor queue, accept, POD, pickups
+  f/[token]/            ← GARRETT: family tracker (read-only)
+  emr/                  ← GARRETT: EMR simulator panel
   api/                  ← route handlers; owner = whoever owns the feature
 lib/
   engine/               ← WILL: tick(now), stages, thresholds, Claude triage
@@ -44,11 +44,11 @@ components/             ← shared UI (badges, cards); first-needer builds it
 
 ---
 
-## Card B — DAN: the hospice side, the family, the demo narrative
+## Card B — GARRETT: the hospice side and the family page
 
-**Mission:** the screens the judges score hardest (FAQ: judging weight sits primarily hospice-side) and the emotional peak (family page). You drive the demo Saturday, so everything on the demo path is yours to make smooth.
+**Mission:** the screens the judges score hardest (FAQ: judging weight sits primarily hospice-side) and the emotional peak (family page). Dan drives the demo Saturday — your job is that every screen on his click-path is smooth and persona-true.
 
-**You own:** `app/(hospice)/`, `app/f/[token]/`, `app/emr/`, the demo script.
+**You own:** `app/(hospice)/`, `app/f/[token]/`, `app/emr/`.
 
 **In order:**
 1. **Patient list → order form** (works one-handed on a phone; admissions nurse will use desktop — responsive, not two builds): equipment picker with HCPCS E-codes (E0250 bed, E1390 O₂, E0601 CPAP…), urgency, target date tied to discharge.
@@ -60,17 +60,17 @@ components/             ← shared UI (badges, cards); first-needer builds it
 7. **(Sat) Family tracker** `/f/[token]`: read-only, calm (cream tint, no status noise): "Your hospital bed arrives today 2–4 PM." / "Pickup is scheduled tomorrow at 10 AM. No one needs to be home. We're so sorry for your loss."
 8. **(Sat) Family-message approve-send** (Claude drafts, human sends) + **money counter** (24h × CMS daily rates, census roll-up) + DME-next-to-meds cost widget.
 
-**You provide:** the demo click-path. **You consume:** contracts.ts, tick flags, inbox records (Will), POD/condition data (Garrett).
-**Not yours:** vendor screens, the engine, the integration diagram.
-**Demo beats you carry:** 1, 3 (UI), 5, 6 (UI). **Q&A you answer:** persona questions, core-user-problems, the close.
+**You provide:** the demo click-path screens. **You consume:** contracts.ts, tick flags, inbox records (Will), POD/condition data (Dan).
+**Not yours:** vendor screens, the engine, the integration diagram, the pitch.
+**Demo beats you build:** 1, 3 (UI), 5, 6 (UI). **Q&A you answer:** persona questions ("which persona is this screen for?").
 
 ---
 
-## Card C — GARRETT: the vendor side, proof surfaces, demo assets
+## Card C — DAN: the vendor side, proof surfaces, demo assets, the pitch
 
-**Mission:** the no-login vendor experience (the FAQ's named bonus path) and every artifact judges take home. You're also freshest-eyes on the pitch — you build the backup video and differentiation page.
+**Mission:** the no-login vendor experience (the FAQ's named bonus path) and every artifact judges take home. You drive the demo and pitch Saturday — the demo script, backup video, and differentiation page are yours end-to-end.
 
-**You own:** `app/v/[token]/`, POD/condition capture, SLA scorecard, Deliverable C page, integration diagram, backup video.
+**You own:** `app/v/[token]/`, POD/condition capture, SLA scorecard, Deliverable C page, integration diagram, backup video, the demo script + pitch.
 
 **In order:**
 1. **Magic-link vendor route** `/v/[token]`: no account, no login — token resolves to vendor context. Phone-first, dispatcher-in-a-truck ergonomics.
@@ -82,17 +82,17 @@ components/             ← shared UI (badges, cards); first-needer builds it
 7. **(Sat) Deliverable C — differentiation snapshot page** (`/why` or in the README): the comparison table from [`market-research.md`](https://github.com/gobixplr-svg/ai-builder-day-2/blob/main/prep/betterrx/market-research.md) — benefit managers vs. single-vendor portals vs. EMR pass-throughs vs. Handoff.
 8. **(Sat) Integration diagram** (eRx events + HCHB/MatrixCare/Netsmart ADT, the FAQ payload shapes, forward-compatible inventory interface) + **backup video at freeze** + demo-device prep (your phone is the vendor phone in the demo).
 
-**You provide:** ETA + status timestamps + POD/condition data. **You consume:** contracts.ts, seeded vendors, pickup jobs (Will).
+**You provide:** ETA + status timestamps + POD/condition data, and the pitch itself. **You consume:** contracts.ts, seeded vendors, pickup jobs (Will).
 **Not yours:** hospice screens, engine internals.
-**Demo beats you carry:** 2 and 4. **Q&A you answer:** "why would a vendor adopt this," integration/architecture, the differentiation table.
+**Demo beats you build:** 2 and 4 (and you narrate all six). **Q&A you answer:** "why would a vendor adopt this," the differentiation table, the close, the "you won last time" question.
 
 ---
 
 ## The seams (where two lanes touch — check these at every standup)
 
-1. **Order form → queue** (Dan → Garrett, via Will's `transition()`): the Fri 5:00 checkpoint.
-2. **ETA set → risk flag** (Garrett → Will → Dan): the Fri-night checkpoint.
-3. **Deceased trigger → pickup job → pickup queue** (Dan → Will → Garrett): Sat-morning checkpoint.
-4. **Inbox approve → action executes** (Dan's UI → Will's engine): needed before beat 3 demos.
+1. **Order form → queue** (Garrett → Dan, via Will's `transition()`): the Fri 5:00 checkpoint.
+2. **ETA set → risk flag** (Dan → Will → Garrett): the Fri-night checkpoint.
+3. **Deceased trigger → pickup job → pickup queue** (Garrett → Will → Dan): Sat-morning checkpoint.
+4. **Inbox approve → action executes** (Garrett's UI → Will's engine): needed before beat 3 demos.
 
 Standups 5:00 / 8:00 / Sat 9:00 — walk the seams, not the features.
