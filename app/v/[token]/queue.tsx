@@ -1,9 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import type { HandoffEvent, Order, OrderState } from "@/lib/contracts";
-import { useDemoEvents } from "@/lib/demo-bus";
-import { loadExtraOrders } from "@/lib/demo-store";
+import { useState } from "react";
+import type { Order, OrderState, Vendor } from "@/lib/contracts";
+import { postJson, useWorld } from "@/lib/use-world";
 import { PodSheet, type PodResult } from "./pod-sheet";
 
 const ETA_CHOICES = [
@@ -34,82 +33,62 @@ const STATE_BADGE: Record<OrderState, string> = {
   pickup_delayed: "bg-status-pickup-delayed",
 };
 
-function timeLeft(iso: string): { text: string; overdue: boolean } {
-  const ms = new Date(iso).getTime() - Date.now();
-  const h = Math.floor(Math.abs(ms) / 3600_000);
-  const m = Math.floor((Math.abs(ms) % 3600_000) / 60_000);
-  const text = h > 0 ? `${h}h ${m}m` : `${m}m`;
-  return ms < 0
-    ? { text: `${text} overdue`, overdue: true }
-    : { text: `${text} left`, overdue: false };
-}
-
 type SheetTarget = { order: Order; mode: "delivery" | "pickup" } | null;
 
-export function VendorQueue({ initialOrders }: { initialOrders: Order[] }) {
-  const [orders, setOrders] = useState(initialOrders);
+export function VendorQueue({ token }: { token: string }) {
+  const { state, error, refresh } = useWorld<{ vendor: Vendor; orders: Order[] }>(
+    `?scope=vendor&token=${encodeURIComponent(token)}`,
+  );
   const [accepting, setAccepting] = useState<string | null>(null);
   const [sheet, setSheet] = useState<SheetTarget>(null);
 
-  const vendorId = initialOrders[0]?.vendorId;
+  if (error)
+    return (
+      <div className="min-h-dvh flex items-center justify-center p-6">
+        <p className="text-sm text-critical">This dispatch link isn&apos;t active. ({error})</p>
+      </div>
+    );
+  if (!state) return <div className="min-h-dvh bg-page" />;
 
-  // Demo-created orders: merge persisted ones after mount, receive live
-  // ones via the demo bus. (Dan, additive — see PR; Postgres replaces.)
-  useEffect(() => {
-    const extra = loadExtraOrders().filter((e) => !vendorId || e.vendorId === vendorId);
-    if (extra.length)
-      setOrders((os) => [...os, ...extra.filter((e) => !os.some((o) => o.id === e.id))]);
-  }, [vendorId]);
+  const { vendor, orders } = state;
+  const engineNow = new Date(state.now).getTime();
 
-  useDemoEvents(
-    useCallback(
-      (e: HandoffEvent) => {
-        if (e.meta.eventType !== "newDmeOrder") return;
-        const order = e.payload.order as Order;
-        if (vendorId && order.vendorId !== vendorId) return;
-        setOrders((os) => (os.some((o) => o.id === order.id) ? os : [...os, order]));
-      },
-      [vendorId],
-    ),
-  );
-
-  function update(id: string, patch: Partial<Order>) {
-    setOrders((os) => os.map((o) => (o.id === id ? { ...o, ...patch } : o)));
+  function timeLeft(iso: string): { text: string; overdue: boolean } {
+    const ms = new Date(iso).getTime() - engineNow;
+    const h = Math.floor(Math.abs(ms) / 3600_000);
+    const m = Math.floor((Math.abs(ms) % 3600_000) / 60_000);
+    const text = h > 0 ? `${h}h ${m}m` : `${m}m`;
+    return ms < 0
+      ? { text: `${text} overdue`, overdue: true }
+      : { text: `${text} left`, overdue: false };
   }
 
-  function accept(order: Order, etaHours: number) {
-    update(order.id, {
-      state: "dispatched",
-      etaAt: new Date(Date.now() + etaHours * 3600_000).toISOString(),
-      timestamps: { ...order.timestamps, dispatched: new Date().toISOString() },
-    });
-    setAccepting(null);
+  async function move(order: Order, to: OrderState, extra: Record<string, unknown> = {}) {
+    await postJson(`/api/orders/${order.id}/transition`, { to, ...extra });
+    refresh();
   }
 
-  function startRoute(order: Order) {
-    update(order.id, {
-      state: "in_transit",
-      timestamps: { ...order.timestamps, in_transit: new Date().toISOString() },
-    });
+  async function pickupAction(order: Order, action: string, extra: Record<string, unknown> = {}) {
+    await postJson(`/api/pickup`, { orderId: order.id, action, ...extra });
+    refresh();
   }
 
-  function confirmPod(target: NonNullable<SheetTarget>, pod: PodResult) {
+  async function confirmPod(target: NonNullable<SheetTarget>, pod: PodResult) {
     const { order, mode } = target;
-    const now = new Date().toISOString();
     if (mode === "delivery") {
-      update(order.id, {
-        state: "delivered",
-        pod: { photoUrl: pod.photoUrl, signedBy: pod.signedBy, at: now, condition: pod.condition },
-        timestamps: { ...order.timestamps, delivered: now },
+      await move(order, "delivered", {
+        pod: {
+          photoUrl: pod.photoUrl,
+          signedBy: pod.signedBy,
+          at: new Date(engineNow).toISOString(),
+          condition: pod.condition,
+        },
       });
     } else {
-      update(order.id, {
-        pickup: order.pickup
-          ? { ...order.pickup, completedAt: now, condition: pod.condition }
-          : undefined,
-      });
+      await pickupAction(order, "complete", { condition: pod.condition });
     }
     setSheet(null);
+    refresh();
   }
 
   const incoming = orders.filter((o) => o.state === "ordered");
@@ -125,84 +104,140 @@ export function VendorQueue({ initialOrders }: { initialOrders: Order[] }) {
   );
 
   return (
-    <main className="flex-1 px-3 py-4 lg:px-4 lg:py-6 grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3 items-start">
-      <Section title={`Incoming (${incoming.length})`}>
-        {incoming.map((o) => (
-          <OrderCard key={o.id} order={o}>
-            {accepting === o.id ? (
-              <div className="flex flex-col gap-1.5 pt-2">
-                <div className="text-xs font-medium text-ink-soft">Set delivery ETA:</div>
-                {ETA_CHOICES.map((c) => (
-                  <button
-                    key={c.label}
-                    onClick={() => accept(o, c.hours)}
-                    className="rounded-md border border-line bg-surface px-3 py-2.5 text-left text-sm font-medium text-ink active:bg-cream"
-                  >
-                    {c.label}
-                  </button>
+    <div className="flex flex-col min-h-dvh w-full">
+      <header className="bg-navy text-white">
+        <div className="mx-auto w-full max-w-6xl px-4 py-3 flex items-baseline justify-between">
+          <div>
+            <div className="text-[11px] uppercase tracking-wider opacity-70">
+              Handoff · Dispatch
+            </div>
+            <h1 className="text-lg font-semibold">{vendor.name}</h1>
+          </div>
+          <span className="text-[11px] opacity-70">no login needed</span>
+        </div>
+      </header>
+
+      <main className="mx-auto w-full max-w-6xl flex-1 px-3 py-4 lg:px-4 lg:py-6 grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3 items-start">
+        <Section title={`Incoming (${incoming.length})`}>
+          {incoming.map((o) => (
+            <OrderCard key={o.id} order={o} clock={timeLeft(o.targetAt)}>
+              {accepting === o.id ? (
+                <div className="flex flex-col gap-1.5 pt-2">
+                  <div className="text-xs font-medium text-ink-soft">Set delivery ETA:</div>
+                  {ETA_CHOICES.map((c) => (
+                    <button
+                      key={c.label}
+                      onClick={() => {
+                        move(o, "dispatched", {
+                          etaAt: new Date(engineNow + c.hours * 3600_000).toISOString(),
+                        });
+                        setAccepting(null);
+                      }}
+                      className="rounded-md border border-line bg-surface px-3 py-2.5 text-left text-sm font-medium text-ink active:bg-cream"
+                    >
+                      {c.label}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <button
+                  onClick={() => setAccepting(o.id)}
+                  className="mt-2 w-full rounded-md bg-brand px-3 py-3 text-sm font-semibold text-white active:bg-brand-alt"
+                >
+                  Accept order
+                </button>
+              )}
+            </OrderCard>
+          ))}
+          {incoming.length === 0 && <Empty text="No new orders." />}
+        </Section>
+
+        <Section title={`Active (${active.length})`}>
+          {active.map((o) => (
+            <OrderCard key={o.id} order={o} clock={timeLeft(o.targetAt)}>
+              {o.state === "dispatched" && (
+                <ActionBtn onClick={() => move(o, "in_transit")}>Start route</ActionBtn>
+              )}
+              {(o.state === "in_transit" || o.state === "at_risk") && (
+                <ActionBtn onClick={() => setSheet({ order: o, mode: "delivery" })}>
+                  Mark delivered
+                </ActionBtn>
+              )}
+            </OrderCard>
+          ))}
+          {active.length === 0 && <Empty text="Nothing in progress." />}
+        </Section>
+
+        <Section title={`Pickups (${pickups.length})`}>
+          {pickups.map((o) => {
+            const p = o.pickup!;
+            return (
+              <OrderCard
+                key={o.id}
+                order={o}
+                clock={timeLeft(p.dueAt)}
+                clockLabel="pickup"
+              >
+                {/* The ladder: silence on these is what Hermes watches for. */}
+                {!p.acknowledgedAt && (
+                  <ActionBtn onClick={() => pickupAction(o, "acknowledge")}>
+                    Acknowledge pickup
+                  </ActionBtn>
+                )}
+                {p.acknowledgedAt && !p.windowStart && (
+                  <div className="flex flex-col gap-1.5 pt-2">
+                    <div className="text-xs font-medium text-ink-soft">
+                      Commit a retrieval window (family sees this):
+                    </div>
+                    {[2, 5, 20].map((h) => (
+                      <button
+                        key={h}
+                        onClick={() =>
+                          pickupAction(o, "commit_window", {
+                            startAt: new Date(engineNow + h * 3600_000).toISOString(),
+                            endAt: new Date(engineNow + (h + 2) * 3600_000).toISOString(),
+                          })
+                        }
+                        className="rounded-md border border-line bg-surface px-3 py-2.5 text-left text-sm font-medium text-ink active:bg-cream"
+                      >
+                        {h === 2 ? "Today, next 2–4 hours" : h === 5 ? "Today, later window" : "Tomorrow morning"}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {p.acknowledgedAt && p.windowStart && (
+                  <ActionBtn onClick={() => setSheet({ order: o, mode: "pickup" })}>
+                    Mark picked up
+                  </ActionBtn>
+                )}
+              </OrderCard>
+            );
+          })}
+          {pickups.length === 0 && <Empty text="No pickups due." />}
+        </Section>
+
+        {done.length > 0 && (
+          <div className="md:col-span-2 xl:col-span-3">
+            <Section title={`Done today (${done.length})`}>
+              <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
+                {done.map((o) => (
+                  <OrderCard key={o.id} order={o} done />
                 ))}
               </div>
-            ) : (
-              <button
-                onClick={() => setAccepting(o.id)}
-                className="mt-2 w-full rounded-md bg-brand px-3 py-3 text-sm font-semibold text-white active:bg-brand-alt"
-              >
-                Accept order
-              </button>
-            )}
-          </OrderCard>
-        ))}
-        {incoming.length === 0 && <Empty text="No new orders." />}
-      </Section>
+            </Section>
+          </div>
+        )}
 
-      <Section title={`Active (${active.length})`}>
-        {active.map((o) => (
-          <OrderCard key={o.id} order={o}>
-            {o.state === "dispatched" && (
-              <ActionBtn onClick={() => startRoute(o)}>Start route</ActionBtn>
-            )}
-            {(o.state === "in_transit" || o.state === "at_risk") && (
-              <ActionBtn onClick={() => setSheet({ order: o, mode: "delivery" })}>
-                Mark delivered
-              </ActionBtn>
-            )}
-          </OrderCard>
-        ))}
-        {active.length === 0 && <Empty text="Nothing in progress." />}
-      </Section>
-
-      <Section title={`Pickups (${pickups.length})`}>
-        {pickups.map((o) => (
-          <OrderCard key={o.id} order={o} clockIso={o.pickup?.dueAt}>
-            <ActionBtn onClick={() => setSheet({ order: o, mode: "pickup" })}>
-              Mark picked up
-            </ActionBtn>
-          </OrderCard>
-        ))}
-        {pickups.length === 0 && <Empty text="No pickups due." />}
-      </Section>
-
-      {done.length > 0 && (
-        <div className="md:col-span-2 xl:col-span-3">
-          <Section title={`Done today (${done.length})`}>
-            <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
-              {done.map((o) => (
-                <OrderCard key={o.id} order={o} done />
-              ))}
-            </div>
-          </Section>
-        </div>
-      )}
-
-      {sheet && (
-        <PodSheet
-          order={sheet.order}
-          mode={sheet.mode}
-          onConfirm={(pod) => confirmPod(sheet, pod)}
-          onCancel={() => setSheet(null)}
-        />
-      )}
-    </main>
+        {sheet && (
+          <PodSheet
+            order={sheet.order}
+            mode={sheet.mode}
+            onConfirm={(pod) => confirmPod(sheet, pod)}
+            onCancel={() => setSheet(null)}
+          />
+        )}
+      </main>
+    </div>
   );
 }
 
@@ -260,15 +295,16 @@ function ConditionChip({ order }: { order: Order }) {
 function OrderCard({
   order,
   children,
-  clockIso,
+  clock,
+  clockLabel,
   done,
 }: {
   order: Order;
   children?: React.ReactNode;
-  clockIso?: string;
+  clock?: { text: string; overdue: boolean };
+  clockLabel?: string;
   done?: boolean;
 }) {
-  const clock = timeLeft(clockIso ?? order.targetAt);
   const pickedUp = !!order.pickup?.completedAt;
   return (
     <div className={`rounded-lg bg-surface border border-line p-3 shadow-sm ${done ? "opacity-80" : ""}`}>
@@ -284,13 +320,13 @@ function OrderCard({
           </span>
         )}
         {done && <ConditionChip order={order} />}
-        {!done && (
+        {!done && clock && (
           <span
             className={`ml-auto text-xs font-medium tabular-nums ${
               clock.overdue ? "text-critical" : "text-ink-soft"
             }`}
           >
-            {clockIso ? `pickup: ${clock.text}` : clock.text}
+            {clockLabel ? `${clockLabel}: ${clock.text}` : clock.text}
           </span>
         )}
       </div>
@@ -303,6 +339,9 @@ function OrderCard({
           <li key={it.hcpcs} className="text-sm text-ink-soft">
             <span className="font-mono text-[11px] text-muted mr-1.5">{it.hcpcs}</span>
             {it.name}
+            {it.assetId && (
+              <span className="ml-1.5 text-[10px] text-muted">#{it.assetId}</span>
+            )}
           </li>
         ))}
       </ul>

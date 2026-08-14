@@ -1,4 +1,3 @@
-import { STUB_ORDERS, STUB_VENDORS } from "@/lib/data/stub-seed";
 import { HospiceBoard } from "./board";
 
 export default function BoardPage() {
@@ -18,7 +17,7 @@ export default function BoardPage() {
         </div>
       </header>
       <div className="mx-auto w-full max-w-7xl flex-1">
-        <HospiceBoard initialOrders={STUB_ORDERS} vendors={STUB_VENDORS} />
+        <HospiceBoard />
       </div>
     </div>
   );

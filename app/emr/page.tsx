@@ -12,7 +12,7 @@ export default function EmrPage() {
             Patient status events → Handoff
           </h1>
           <p className="text-xs opacity-70 mt-0.5">
-            Stands in for the EMR's partner-connection layer. Every button
+            Stands in for the EMR&apos;s partner-connection layer. Every button
             emits the same eRx-shaped event BetterRX already receives today
             (meta.eventType + patient identifiers). This is the integration,
             made visible.
