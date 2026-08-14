@@ -1,7 +1,16 @@
 // Shared mock seed used by hospice + vendor surfaces until Will's
 // real seed generator lands. One source of truth — do not fork it.
 
-import type { Order, Vendor } from "@/lib/contracts";
+import type { Order, Patient, Vendor } from "@/lib/contracts";
+
+export const STUB_PATIENTS: Patient[] = [
+  { id: "p1", label: "M. Checketts", familyToken: "demo-family", status: "active" },
+  { id: "p4", label: "D. Whitmer", familyToken: "demo-family-2", status: "deceased" },
+];
+
+export function patientByFamilyToken(token: string): Patient | undefined {
+  return STUB_PATIENTS.find((p) => p.familyToken === token);
+}
 
 export const STUB_VENDORS: Vendor[] = [
   {
