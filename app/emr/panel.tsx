@@ -2,38 +2,35 @@
 
 import { useState } from "react";
 import type { Patient } from "@/lib/contracts";
-import { emitDemoEvent } from "@/lib/demo-bus";
-
-const INITIAL_PATIENTS: (Patient & { note: string })[] = [
-  { id: "p1", label: "M. Checketts", status: "active", note: "Admitted today — discharge home 4:30 PM" },
-  { id: "p3", label: "L. Sorensen", status: "active", note: "Census day 12" },
-  { id: "p5", label: "J. Maughan", status: "active", note: "Admitted this morning — STAT O₂ ordered" },
-  { id: "p6", label: "A. Petrov", status: "active", note: "Census day 44" },
-];
+import { postJson, useWorld } from "@/lib/use-world";
 
 const EVENTS = [
-  { type: "admit", label: "Admit", to: "active" as const },
-  { type: "discharge", label: "Discharge home", to: "discharged" as const },
-  { type: "deceased", label: "Mark deceased", to: "deceased" as const },
-];
+  { type: "admitted", label: "Admit" },
+  { type: "discharged", label: "Discharge home" },
+  { type: "deceased", label: "Mark deceased" },
+] as const;
+
+const STATUS_OF: Record<string, Patient["status"]> = {
+  admitted: "active",
+  discharged: "discharged",
+  deceased: "deceased",
+};
 
 export function EmrPanel() {
-  const [patients, setPatients] = useState(INITIAL_PATIENTS);
+  const { state, refresh } = useWorld<{ patients: Patient[] }>();
   const [log, setLog] = useState<string[]>([]);
 
-  function fire(patient: Patient, type: string, to: Patient["status"]) {
-    setPatients((ps) => ps.map((p) => (p.id === patient.id ? { ...p, status: to } : p)));
-    emitDemoEvent({
-      meta: { eventType: `patientStatus.${type}`, at: new Date().toISOString() },
-      account: { identifiers: [{ id: "wasatch-hospice" }] },
-      payload: { patientId: patient.id, patientLabel: patient.label, status: to },
-    });
+  const patients = state?.patients ?? [];
+
+  async function fire(patient: Patient, type: (typeof EVENTS)[number]["type"]) {
+    const ok = await postJson("/api/emr-event", { patientId: patient.id, status: type });
     setLog((l) =>
       [
-        `${new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" })} → patientStatus.${type} · ${patient.label}`,
+        `${new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" })} → newOrUpdatePatient (${type}) · ${patient.label}${ok ? "" : " · FAILED"}`,
         ...l,
       ].slice(0, 8),
     );
+    refresh();
   }
 
   return (
@@ -55,13 +52,12 @@ export function EmrPanel() {
                 {p.status}
               </span>
             </div>
-            <div className="text-xs text-muted mt-0.5">{p.note}</div>
             <div className="mt-2 flex gap-1.5 flex-wrap">
               {EVENTS.map((e) => (
                 <button
                   key={e.type}
-                  disabled={p.status === e.to}
-                  onClick={() => fire(p, e.type, e.to)}
+                  disabled={p.status === STATUS_OF[e.type]}
+                  onClick={() => fire(p, e.type)}
                   className={`rounded-md px-2.5 py-1.5 text-xs font-semibold disabled:opacity-30 ${
                     e.type === "deceased"
                       ? "bg-navy text-white"
@@ -74,16 +70,20 @@ export function EmrPanel() {
             </div>
           </div>
         ))}
+        {patients.length === 0 && (
+          <div className="text-xs text-muted py-4">Loading patients…</div>
+        )}
       </div>
 
       <div className="rounded-lg border border-line bg-surface p-3">
         <div className="text-xs font-semibold uppercase tracking-wider text-muted">
-          Event stream (eRx-shaped, ADT pattern)
+          Event stream (eRx-shaped, ADT pattern) — now server-side: watch any device
         </div>
         {log.length === 0 ? (
           <div className="mt-2 text-xs text-muted">
-            No events yet. Open <span className="font-mono">/board</span> in another
-            tab, then mark a patient deceased — watch the pickup trigger itself.
+            No events fired from this tab yet. Open <span className="font-mono">/board</span>{" "}
+            anywhere — another laptop, a phone — then mark a patient deceased and watch the
+            pickup trigger itself.
           </div>
         ) : (
           <ul className="mt-2 flex flex-col gap-1 font-mono text-[11px] text-ink-soft">

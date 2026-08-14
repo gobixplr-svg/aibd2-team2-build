@@ -2,15 +2,9 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import type { Order, Urgency, Vendor } from "@/lib/contracts";
+import type { Order, Patient, Urgency, Vendor } from "@/lib/contracts";
 import { CATALOG, DON_THRESHOLD_MONTHLY } from "@/lib/data/catalog";
-import { addExtraOrder } from "@/lib/demo-store";
-
-const PATIENTS = [
-  { id: "p1", label: "M. Checketts", note: "discharge home today 4:30 PM" },
-  { id: "p2", label: "R. Okafor", note: "census day 8" },
-  { id: "p5", label: "J. Maughan", note: "admitted this morning" },
-];
+import { useWorld } from "@/lib/use-world";
 
 // Per-vendor synthetic fulfillment profile for the picker. Real version
 // reads vendor stats + (future) live inventory; the interface is shaped
@@ -23,8 +17,9 @@ const FULFILLMENT: Record<
   v2: { statWindow: "4–6h", routineWindow: "next day", costFactor: 0.92, backorder: ["E0250"] },
 };
 
-export function OrderForm({ vendors }: { vendors: Vendor[] }) {
-  const [patientId, setPatientId] = useState(PATIENTS[0].id);
+export function OrderForm() {
+  const { state } = useWorld<{ vendors: Vendor[]; patients: Patient[] }>();
+  const [patientId, setPatientId] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [urgency, setUrgency] = useState<Urgency>("routine");
   const [targetAt, setTargetAt] = useState(() => {
@@ -35,6 +30,8 @@ export function OrderForm({ vendors }: { vendors: Vendor[] }) {
   const [vendorId, setVendorId] = useState<string | null>(null);
   const [placed, setPlaced] = useState<Order | null>(null);
 
+  const vendors = useMemo(() => state?.vendors ?? [], [state?.vendors]);
+  const patients = (state?.patients ?? []).filter((p) => p.status === "active");
   const items = CATALOG.filter((c) => selected.has(c.hcpcs));
   const monthlyBase = items.reduce((s, i) => s + i.monthly, 0);
   const needsDon = items.some((i) => i.highCost || i.monthly > DON_THRESHOLD_MONTHLY);
@@ -60,11 +57,10 @@ export function OrderForm({ vendors }: { vendors: Vendor[] }) {
     [vendors, items, urgency, monthlyBase],
   );
 
-  function place() {
-    if (!vendorId || items.length === 0) return;
-    const patient = PATIENTS.find((p) => p.id === patientId)!;
-    const order: Order = {
-      id: `ord-${1100 + Math.floor(Math.random() * 899)}`,
+  async function place() {
+    if (!vendorId || items.length === 0 || !patientId) return;
+    const patient = patients.find((p) => p.id === patientId)!;
+    const body = {
       patientId: patient.id,
       patientLabel: patient.label,
       address: "Address on file (synthetic)",
@@ -72,14 +68,17 @@ export function OrderForm({ vendors }: { vendors: Vendor[] }) {
       urgency,
       vendorId,
       targetAt: new Date(targetAt).toISOString(),
-      state: "ordered",
       note: needsDon
         ? "Contains a high-cost item — routed to DON approval in parallel."
         : undefined,
-      timestamps: { ordered: new Date().toISOString() },
     };
-    addExtraOrder(order);
-    setPlaced(order);
+    const res = await fetch("/api/orders", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const json = await res.json();
+    if (json.ok) setPlaced(json.order as Order);
   }
 
   if (placed) {
@@ -112,7 +111,7 @@ export function OrderForm({ vendors }: { vendors: Vendor[] }) {
             href="/v/demo-vendor"
             className="rounded-md border border-line px-4 py-2.5 text-sm font-semibold text-ink-soft"
           >
-            Vendor's phone view
+            Vendor&apos;s phone view
           </Link>
         </div>
       </div>
@@ -124,7 +123,7 @@ export function OrderForm({ vendors }: { vendors: Vendor[] }) {
       {/* patient */}
       <Field label="Patient">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-          {PATIENTS.map((p) => (
+          {patients.map((p) => (
             <button
               key={p.id}
               onClick={() => setPatientId(p.id)}
@@ -133,9 +132,11 @@ export function OrderForm({ vendors }: { vendors: Vendor[] }) {
               }`}
             >
               <div className="text-sm font-semibold text-ink">{p.label}</div>
-              <div className="text-[11px] text-muted">{p.note}</div>
             </button>
           ))}
+          {patients.length === 0 && (
+            <div className="text-xs text-muted py-2">Loading census…</div>
+          )}
         </div>
       </Field>
 

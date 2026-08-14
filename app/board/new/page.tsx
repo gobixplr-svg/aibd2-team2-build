@@ -1,4 +1,3 @@
-import { STUB_VENDORS } from "@/lib/data/stub-seed";
 import { OrderForm } from "./order-form";
 
 export default function NewOrderPage() {
@@ -13,7 +12,7 @@ export default function NewOrderPage() {
         </div>
       </header>
       <div className="mx-auto w-full max-w-3xl flex-1 p-4">
-        <OrderForm vendors={STUB_VENDORS} />
+        <OrderForm />
       </div>
     </div>
   );
