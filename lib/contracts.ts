@@ -347,6 +347,11 @@ export interface TokenLedgerEntry {
   at: string;
   kind: "triage" | "family_draft" | "message_triage";
   orderId?: string;
+  // Stage 3 batches every flagged order into ONE call, so cost-per-order
+  // is total / orders-covered. Without this the batch looks like a
+  // single-order call and the headline number comes out 4x too high —
+  // which is the number that goes in front of judges.
+  orderCount?: number;
   model: string;
   inputTokens: number;
   outputTokens: number;

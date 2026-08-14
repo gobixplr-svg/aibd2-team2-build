@@ -263,6 +263,7 @@ export async function triage(
     const ledger: TokenLedgerEntry = {
       at: new Date().toISOString(),
       kind: "triage",
+      orderCount: inputs.length,
       model: MODEL,
       inputTokens: u.input_tokens,
       outputTokens: u.output_tokens,
