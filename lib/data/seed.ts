@@ -18,6 +18,7 @@
 // ─────────────────────────────────────────────────────────────
 
 import type { Order, OrderItem, Patient, Vendor } from "@/lib/contracts";
+import { EQUIPMENT } from "@/lib/data/catalog";
 
 // ── Deterministic PRNG (mulberry32) ──────────────────────────
 
@@ -51,35 +52,9 @@ const H = 3_600_000;
 const D = 24 * H;
 const iso = (ms: number) => new Date(ms).toISOString();
 
-// ── Equipment (CMS DME PUF, national, by HCPCS) ──────────────
-// monthlyUsd = avg Medicare payment per rental claim. Core hospice
-// DME is nearly all rental — which is exactly why a late pickup
-// costs money: "we have to pay for an additional day" (COO, brief).
-
-export interface Equip {
-  hcpcs: string;
-  name: string;
-  monthlyUsd: number;
-  rental: boolean;
-  oxygen?: boolean;
-}
-
-export const EQUIPMENT: Record<string, Equip> = {
-  E1390: { hcpcs: "E1390", name: "Oxygen concentrator", monthlyUsd: 85, rental: true, oxygen: true },
-  E0601: { hcpcs: "E0601", name: "CPAP device", monthlyUsd: 34, rental: true, oxygen: true },
-  E0431: { hcpcs: "E0431", name: "Portable oxygen system", monthlyUsd: 17, rental: true, oxygen: true },
-  E0470: { hcpcs: "E0470", name: "BiPAP respiratory assist", monthlyUsd: 91, rental: true, oxygen: true },
-  K0001: { hcpcs: "K0001", name: "Standard wheelchair", monthlyUsd: 19, rental: true },
-  E0260: { hcpcs: "E0260", name: "Hospital bed, semi-electric", monthlyUsd: 49, rental: true },
-  E0250: { hcpcs: "E0250", name: "Hospital bed, fixed height", monthlyUsd: 47, rental: true },
-  E1130: { hcpcs: "E1130", name: "Standard wheelchair (detachable arms)", monthlyUsd: 19, rental: true },
-  E0277: { hcpcs: "E0277", name: "Powered pressure-reducing mattress", monthlyUsd: 162, rental: true },
-  E0143: { hcpcs: "E0143", name: "Folding walker, wheeled", monthlyUsd: 49, rental: false },
-  E0163: { hcpcs: "E0163", name: "Commode chair", monthlyUsd: 52, rental: false },
-};
-
-export const dailyRateUsd = (hcpcs: string) =>
-  (EQUIPMENT[hcpcs]?.monthlyUsd ?? 40) / 30;
+// Equipment rates live in lib/data/catalog.ts — one table, shared with
+// the order form, so the board's cost estimate and the engine's money
+// counter can never print different dollars for the same order.
 
 const item = (hcpcs: string, assetId?: string): OrderItem => ({
   hcpcs,
