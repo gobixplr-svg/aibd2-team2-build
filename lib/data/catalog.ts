@@ -23,7 +23,8 @@ export interface CatalogItem {
   name: string;
   monthly: number; // avg Medicare payment per rental claim, CMS DME PUF
   highCost?: boolean; // routes to DON approval (a persona they named)
-  oxygen?: boolean; // delay is a safety issue, not a service issue
+  oxygen?: boolean;      // actual oxygen therapy (concentrator, portable)
+  respiratory?: boolean; // oxygen OR positive-airway-pressure — delay is a safety issue
   claimsPerYear?: number; // national volume — drives seed weighting
 }
 
@@ -46,10 +47,10 @@ export const CATALOG: CatalogItem[] = [
 
   // Respiratory. E1390 is the #1 DME code nationally by claim volume,
   // which matches the brief's own discharge scenario (bed + oxygen).
-  { hcpcs: "E1390", name: "Oxygen concentrator", monthly: 85, oxygen: true, highCost: true, claimsPerYear: 5_470_000 },
-  { hcpcs: "E0431", name: "Portable oxygen system", monthly: 17, oxygen: true, claimsPerYear: 2_230_000 },
-  { hcpcs: "E0601", name: "CPAP device", monthly: 34, oxygen: true, claimsPerYear: 4_170_000 },
-  { hcpcs: "E0470", name: "BiPAP respiratory assist", monthly: 91, oxygen: true, highCost: true, claimsPerYear: 535_000 },
+  { hcpcs: "E1390", name: "Oxygen concentrator", monthly: 85, oxygen: true, respiratory: true, highCost: true, claimsPerYear: 5_470_000 },
+  { hcpcs: "E0431", name: "Portable oxygen system", monthly: 17, oxygen: true, respiratory: true, claimsPerYear: 2_230_000 },
+  { hcpcs: "E0601", name: "CPAP device", monthly: 34, respiratory: true, claimsPerYear: 4_170_000 },
+  { hcpcs: "E0470", name: "BiPAP respiratory assist", monthly: 91, respiratory: true, highCost: true, claimsPerYear: 535_000 },
 
   // Mobility.
   { hcpcs: "K0001", name: "Standard wheelchair", monthly: 19, claimsPerYear: 1_290_000 },
@@ -71,6 +72,11 @@ export const dailyRateUsd = (hcpcs: string) =>
 
 /** True when a delay is a patient-safety question rather than a service one. */
 export const isOxygen = (hcpcs: string) => EQUIPMENT[hcpcs]?.oxygen === true;
+
+/** Oxygen or positive-airway-pressure. CPAP is not oxygen, but a delay on
+ *  either is still a patient-safety question rather than a service one. */
+export const isRespiratory = (hcpcs: string) =>
+  EQUIPMENT[hcpcs]?.respiratory === true;
 
 /** Items on this order that need the director of nursing to sign off. */
 export const donItems = (hcpcs: string[]) =>
