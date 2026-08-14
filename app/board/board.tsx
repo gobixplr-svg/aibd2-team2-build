@@ -1,9 +1,11 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import type { HandoffEvent, Order, OrderState, Vendor } from "@/lib/contracts";
 import { draftStatusNote } from "@/lib/ai/draft-note";
 import { useDemoEvents } from "@/lib/demo-bus";
+import { loadExtraOrders } from "@/lib/demo-store";
 
 interface InboxItem {
   id: string;
@@ -108,6 +110,22 @@ export function HospiceBoard({
 
   const vendorName = (id: string) => vendors.find((v) => v.id === id)?.name ?? id;
 
+  // Merge demo-created orders after mount (localStorage isn't available
+  // during SSR, so this can't happen in the useState initializer).
+  useEffect(() => {
+    const extra = loadExtraOrders();
+    if (extra.length)
+      setOrders((os) => [...os, ...extra.filter((e) => !os.some((o) => o.id === e.id))]);
+  }, []);
+
+  useDemoEvents(
+    useCallback((e: HandoffEvent) => {
+      if (e.meta.eventType !== "newDmeOrder") return;
+      const order = e.payload.order as Order;
+      setOrders((os) => (os.some((o) => o.id === order.id) ? os : [...os, order]));
+    }, []),
+  );
+
   // EMR simulator events (same-browser demo bus): a deceased status
   // auto-triggers pickup on the patient's delivered equipment — the
   // fallback path behind the nurse-initiated trigger.
@@ -195,9 +213,17 @@ export function HospiceBoard({
   return (
     <main className="flex-1 p-3 lg:p-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 items-start">
       <div className="md:col-span-2 xl:col-span-4 flex items-center justify-between">
-        <div className="text-xs text-muted">
-          Drag a card to advance it. Every move gets a status note — AI drafts,
-          you approve.
+        <div className="flex items-center gap-3">
+          <Link
+            href="/board/new"
+            className="rounded-md bg-brand px-3 py-2 text-sm font-semibold text-white"
+          >
+            + New order
+          </Link>
+          <div className="hidden sm:block text-xs text-muted">
+            Drag a card to advance it. Every move gets a status note — AI
+            drafts, you approve.
+          </div>
         </div>
         <button
           onClick={() => setInboxOpen((v) => !v)}
