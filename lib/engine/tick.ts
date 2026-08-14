@@ -86,6 +86,14 @@ export function senseOrder(
   const pickupAt = ms(order.pickup?.triggeredAt);
   const pickupDue = ms(order.pickup?.dueAt);
 
+  // Predicted breach. The vendor's measured average retrieval time vs
+  // the 24h SLA — known the moment the nurse triggers, before anything
+  // is late. Great Basin averages 31h, so assigning them a pickup is a
+  // 7-hour breach we can see at T+0.
+  const avgPickup = vendor?.stats?.avgPickupHours ?? 0;
+  const slaHours =
+    pickupAt !== null && pickupDue !== null ? (pickupDue - pickupAt) / H : 24;
+
   return {
     orderId: order.id,
     hoursToDeadline: (target - now) / H,
@@ -97,6 +105,11 @@ export function senseOrder(
     vendorOnTimeRate: vendor?.stats?.onTimeRate ?? 1,
     vendorStatOnTimeRate: vendor?.stats?.statOnTimeRate ?? 1,
     vendorConnected: vendor?.connected ?? false,
+    vendorAvgPickupHours: avgPickup,
+    pickupPredictedBreachHours:
+      pickupAt === null ? 0 : Math.max(0, avgPickup - slaHours),
+    pickupAcknowledged: Boolean(order.pickup?.acknowledgedAt),
+    pickupWindowCommitted: Boolean(order.pickup?.windowStart),
     urgency: order.urgency,
     itemCount: order.items.length,
     isOxygen: order.items.some((i) => isRespiratory(i.hcpcs)),
@@ -172,15 +185,68 @@ export function screen(
     );
   }
 
-  // 24h post-death, not 48 — the hospice pays until retrieval, and
-  // the family is looking at the equipment the whole time.
-  if (order.state === "pickup_triggered" && f.pickupOverdueHours > 0) {
-    codes.push("pickup_overdue_24h");
-    score += 60 + Math.min(30, f.pickupOverdueHours * 2);
-    reasons.push(
-      `Pickup was triggered ${Math.round(f.pickupAgeHours ?? 0)}h ago with no retrieval — ` +
-        `${Math.round(f.pickupOverdueHours)}h past the ${p.pickupSlaHours}h window`,
-    );
+  // ── The pickup ladder ────────────────────────────────────
+  // Firing only at 24h reports a breach. The goal is that the breach
+  // never happens and the nurse never has to wonder whether anyone is
+  // coming. So: predict at T+0, then climb in stages, and keep the
+  // early rungs silent.
+  const age = f.pickupAgeHours;
+  if (order.state === "pickup_triggered" && age !== null) {
+    // T+0 — we know from history this vendor will miss, before they do.
+    if (f.pickupPredictedBreachHours > 0 && f.pickupOverdueHours === 0) {
+      codes.push("pickup_predicted_breach");
+      score += 45 + Math.min(20, f.pickupPredictedBreachHours * 2);
+      reasons.push(
+        `${vendor?.name ?? "Vendor"} averages ${Math.round(f.vendorAvgPickupHours)}h on pickups ` +
+          `against a ${p.pickupSlaHours}h window — predicted breach by ` +
+          `${Math.round(f.pickupPredictedBreachHours)}h, flagged before anything is late`,
+      );
+    }
+    // T+2h — nobody at the vendor has even looked at it.
+    if (age > p.pickupAckHours && !f.pickupAcknowledged) {
+      codes.push("pickup_no_ack");
+      score += 15;
+      reasons.push(
+        `No dispatcher acknowledgment ${Math.round(age)}h after the nurse triggered pickup`,
+      );
+    }
+    // T+6h — acknowledged, but still no committed retrieval window. The
+    // family cannot be told anything useful until this exists.
+    if (age > p.pickupWindowHours && !f.pickupWindowCommitted) {
+      codes.push("pickup_no_window");
+      score += 20;
+      reasons.push(
+        `No retrieval window committed ${Math.round(age)}h in — the family still ` +
+          `cannot be told when someone is coming`,
+      );
+    }
+    // T+12h — half the window gone with nothing scheduled. Offer a swap.
+    if (age > p.pickupBackupHours && !f.pickupWindowCommitted) {
+      codes.push("pickup_needs_backup");
+      score += 25;
+      reasons.push(
+        `${Math.round(p.pickupSlaHours - age)}h left on the ${p.pickupSlaHours}h window with no ` +
+          `retrieval scheduled — a backup vendor can still make it`,
+      );
+    }
+    // T+18h — breach is now likely. Get the words ready for a human.
+    if (age > p.pickupFamilyHours && !f.pickupWindowCommitted) {
+      codes.push("pickup_family_notice");
+      score += 20;
+      reasons.push(
+        `Retrieval unlikely inside the window — draft an update so the family hears ` +
+          `from us before they notice`,
+      );
+    }
+    // T+24h — breached. Money starts, and the equipment is still there.
+    if (f.pickupOverdueHours > 0) {
+      codes.push("pickup_overdue_24h");
+      score += 60 + Math.min(30, f.pickupOverdueHours * 2);
+      reasons.push(
+        `Pickup was triggered ${Math.round(age)}h ago with no retrieval — ` +
+          `${Math.round(f.pickupOverdueHours)}h past the ${p.pickupSlaHours}h window`,
+      );
+    }
   }
 
   // The pattern a flat threshold cannot see: a vendor whose overall
@@ -236,6 +302,10 @@ function proposeAction(
 ): Pick<InboxItem, "tier" | "title" | "detail" | "proposedAction"> {
   const { order, reasonCodes, features } = s;
 
+  // ── Pickup ladder, most severe rung first ────────────────
+  // Order matters: the highest rung reached is the action taken, so a
+  // breached pickup never also emits a "nudge the dispatcher" row.
+
   if (reasonCodes.includes("pickup_overdue_24h")) {
     return {
       tier: "human_facing", // anything the family reads is never sent alone
@@ -244,6 +314,57 @@ function proposeAction(
       detail:
         `Equipment has been in the home ${Math.round(features.pickupAgeHours ?? 0)}h after death. ` +
         `Draft a respectful update to the family and schedule retrieval.`,
+    };
+  }
+
+  if (reasonCodes.includes("pickup_family_notice")) {
+    return {
+      tier: "human_facing",
+      proposedAction: "family_pickup_heads_up",
+      title: `Pickup at risk — ${order.patientLabel}`,
+      detail:
+        `Retrieval is unlikely inside the window. Draft an update so the family hears ` +
+        `it from us rather than noticing the equipment is still there.`,
+    };
+  }
+
+  if (reasonCodes.includes("pickup_needs_backup")) {
+    return {
+      // A pickup has no clinical urgency — nobody's health depends on
+      // which truck collects a bed — so the blast radius of getting
+      // this wrong is a phone call. One tap, not a deliberation.
+      tier: "consequential",
+      proposedAction: "reassign_pickup",
+      title: `Reassign pickup — ${order.patientLabel}`,
+      detail:
+        `${Math.round((features.pickupAgeHours ?? 0))}h in with nothing scheduled. ` +
+        `A backup vendor can still retrieve inside the window.`,
+    };
+  }
+
+  // The silent rungs. Hermes chases the vendor; nobody is told.
+  if (
+    reasonCodes.includes("pickup_no_window") ||
+    reasonCodes.includes("pickup_no_ack")
+  ) {
+    return {
+      tier: "reversible",
+      proposedAction: "chase_pickup_window",
+      title: `Chase retrieval window — ${order.patientLabel}`,
+      detail: reasonCodes.includes("pickup_no_ack")
+        ? `No dispatcher acknowledgment yet. Reminder sent.`
+        : `Acknowledged but no window committed. Asked for a 2-hour window.`,
+    };
+  }
+
+  if (reasonCodes.includes("pickup_predicted_breach")) {
+    return {
+      tier: "consequential",
+      proposedAction: "preempt_pickup_breach",
+      title: `Predicted late pickup — ${order.patientLabel}`,
+      detail:
+        `${vendor?.name ?? "This vendor"} averages ${Math.round(features.vendorAvgPickupHours)}h ` +
+        `on retrievals. Reassigning now keeps it inside the window.`,
     };
   }
 
@@ -383,15 +504,24 @@ export async function tick(now: number): Promise<TickResult> {
 
     touched.push(next);
 
-    // Deterministic proposal is the baseline. Stage 3 may override the
-    // action and supplies the ranking — but the TIER is always decided
-    // in code, never by the model, so the oversight level can't be
-    // argued down by whatever the model felt like returning.
+    // proposeAction() is the single source of the baseline action, and
+    // it is the one that knows the full ladder.
+    //
+    // Stage 3 may override it — but ONLY when the model actually ran.
+    // triage() also returns a ranking on its fallback path, and letting
+    // that path override the action meant the less-informed mapping won:
+    // every pickup-ladder rung collapsed to hold_and_watch, so a nurse
+    // 19h into a stalled retrieval saw nothing. Ranking always applies;
+    // action override requires aiUsed.
+    //
+    // TIER is decided in code either way — the model never picks its own
+    // oversight level.
     const base = proposeAction(s, vendor);
     const ai = byOrder.get(s.order.id);
-    const proposal = ai
-      ? { ...base, tier: ai.tier, proposedAction: ai.action }
-      : base;
+    const proposal =
+      ai && triaged.aiUsed
+        ? { ...base, tier: ai.tier, proposedAction: ai.action }
+        : base;
 
     // Dedup across ALL statuses, not just pending. Reversible actions
     // are created already-executed, so a pending-only check meant every
@@ -426,6 +556,10 @@ export async function tick(now: number): Promise<TickResult> {
         proposal.tier === "reversible" && (ai?.confidence ?? 1) >= 0.7
           ? "auto_executed"
           : "pending",
+      // Reversible + auto-executed means Hermes handled it and nobody
+      // needs to know. The board should collapse these — an empty inbox
+      // in the morning is the point, not a log of everything we did.
+      silent: proposal.tier === "reversible" && (ai?.confidence ?? 1) >= 0.7,
       source: "hermes",
       ...proposal,
     });

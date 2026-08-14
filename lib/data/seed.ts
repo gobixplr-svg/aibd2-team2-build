@@ -165,7 +165,11 @@ export function buildPatients(): SeededPatient[] {
       // have family pages in the demo click-path.
       ...(id === "p1" ? { familyToken: "demo-family" } : {}),
       ...(id === "p4" ? { familyToken: "demo-family-2" } : {}),
-      status: id === "p4" ? ("deceased" as const) : ("active" as const),
+      // p7 is the second pickup — assigned to a slow vendor so the
+      // predicted-breach path is actually visible in the demo.
+      ...(id === "p7" ? { familyToken: "demo-family-3" } : {}),
+      status:
+        id === "p4" || id === "p7" ? ("deceased" as const) : ("active" as const),
     };
   });
 }
@@ -280,6 +284,34 @@ export function buildLiveOrders(now: number): Order[] {
         ordered: iso(now - 31 * D),
         delivered: iso(now - 30 * D),
         pickup_triggered: iso(now - 5 * H),
+      },
+    },
+    {
+      // The predicted-breach case. Triggered only an hour ago and not
+      // late by any measure — but it's assigned to Great Basin, whose
+      // measured average retrieval is 31h against a 24h window. Hermes
+      // knows at T+0 that this one misses, and can still swap it.
+      //
+      // This is "it sees the failure coming" with nothing yet wrong.
+      id: "ord-0974",
+      patientId: "p7",
+      patientLabel: "E. Tanaka",
+      address: "215 N Main St, Bountiful",
+      items: [item("E1390", "GBD-O-0442"), item("E0277", "GBD-M-0119")],
+      urgency: "routine",
+      vendorId: "v2",
+      targetAt: iso(now - 12 * D),
+      state: "pickup_triggered",
+      note: "Patient passed this morning. Daughter is at the house today.",
+      pickup: {
+        triggeredAt: iso(now - 1 * H),
+        triggeredBy: "nurse",
+        dueAt: iso(now - 1 * H + 24 * H),
+      },
+      timestamps: {
+        ordered: iso(now - 13 * D),
+        delivered: iso(now - 12 * D),
+        pickup_triggered: iso(now - 1 * H),
       },
     },
   ];

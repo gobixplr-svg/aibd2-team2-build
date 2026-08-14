@@ -151,15 +151,25 @@ function fallback(
   const actions = [...inputs]
     .sort((a, b) => b.score - a.score)
     .map((i, idx) => {
-      const action: TriageAction = i.codes.includes("pickup_overdue_24h")
-        ? "notify_family"
-        : i.codes.includes("eta_past_deadline")
-          ? "reroute_vendor"
-          : i.codes.includes("dispatch_silence")
-            ? i.features.vendorConnected
+      // Mirrors proposeAction()'s ladder so the two paths agree. Note
+      // tick.ts only takes the ACTION from here when the model actually
+      // ran — on the fallback path this contributes ranking only, and
+      // proposeAction() stays authoritative.
+      const c = i.codes;
+      const action: TriageAction =
+        c.includes("pickup_overdue_24h") || c.includes("pickup_family_notice")
+          ? "notify_family"
+          : c.includes("pickup_needs_backup") || c.includes("pickup_predicted_breach")
+            ? "schedule_pickup"
+            : c.includes("pickup_no_window") || c.includes("pickup_no_ack")
               ? "nudge_vendor"
-              : "escalate_case_manager"
-            : "hold_and_watch";
+              : c.includes("eta_past_deadline")
+                ? "reroute_vendor"
+                : c.includes("dispatch_silence")
+                  ? i.features.vendorConnected
+                    ? "nudge_vendor"
+                    : "escalate_case_manager"
+                  : "hold_and_watch";
       return {
         orderId: i.features.orderId,
         action,
