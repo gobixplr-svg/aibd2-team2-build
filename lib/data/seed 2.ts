@@ -165,14 +165,11 @@ export function buildPatients(): SeededPatient[] {
       // have family pages in the demo click-path.
       ...(id === "p1" ? { familyToken: "demo-family" } : {}),
       ...(id === "p4" ? { familyToken: "demo-family-2" } : {}),
-      // p7 and p9 are the other two pickups — p7 on a slow vendor so
-      // predicted-breach is visible, p9 urgent so the two ladder speeds
-      // can be shown side by side.
+      // p7 is the second pickup — assigned to a slow vendor so the
+      // predicted-breach path is actually visible in the demo.
       ...(id === "p7" ? { familyToken: "demo-family-3" } : {}),
       status:
-        id === "p4" || id === "p7" || id === "p9"
-          ? ("deceased" as const)
-          : ("active" as const),
+        id === "p4" || id === "p7" ? ("deceased" as const) : ("active" as const),
     };
   });
 }
@@ -315,37 +312,6 @@ export function buildLiveOrders(now: number): Order[] {
         ordered: iso(now - 13 * D),
         delivered: iso(now - 12 * D),
         pickup_triggered: iso(now - 1 * H),
-      },
-    },
-    {
-      // URGENT pickup. Same equipment, same 40 minutes of vendor
-      // silence — but a 4h window instead of 24h, so 40 minutes is 17%
-      // of the time available rather than 3%. The ladder escalates in
-      // minutes here and in hours on the routine one, from one rule.
-      //
-      // Real reasons a retrieval is urgent: a small home where the bed
-      // blocks the only path to the bathroom, infection control, or
-      // another patient waiting on that serialized asset.
-      id: "ord-0977",
-      patientId: "p9",
-      patientLabel: "C. Ruiz",
-      address: "620 E Pages Ln, Centerville",
-      items: [item("E0260", "GBD-B-0781")],
-      urgency: "stat",
-      vendorId: "v2",
-      targetAt: iso(now - 6 * D),
-      state: "pickup_triggered",
-      note: "Bed blocks the only route to the bathroom. Family asked twice.",
-      pickup: {
-        triggeredAt: iso(now - 0.7 * H),
-        triggeredBy: "nurse",
-        urgency: "stat",
-        dueAt: iso(now - 0.7 * H + 4 * H), // 4h urgent window
-      },
-      timestamps: {
-        ordered: iso(now - 7 * D),
-        delivered: iso(now - 6 * D),
-        pickup_triggered: iso(now - 0.7 * H),
       },
     },
   ];

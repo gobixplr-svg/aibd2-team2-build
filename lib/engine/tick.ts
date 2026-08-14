@@ -63,6 +63,10 @@ const OPEN: Order["state"][] = [
 
 const ms = (s?: string) => (s ? new Date(s).getTime() : null);
 
+/** "20m" / "3h" / "1.5h" — a 4h window makes "0h" a lie. */
+const fmtH = (h: number) =>
+  h < 1 ? `${Math.round(h * 60)}m` : h < 10 ? `${Math.round(h * 10) / 10}h` : `${Math.round(h)}h`;
+
 // ── Stage 1 — Sense ──────────────────────────────────────────
 // Pure arithmetic. No thresholds applied here; this stage only
 // measures. Everything it produces is stored on the flag, which is
@@ -72,6 +76,7 @@ export function senseOrder(
   order: Order,
   vendor: Vendor | undefined,
   now: number,
+  policy: Policy,
 ): RiskFeatures {
   const target = ms(order.targetAt) ?? now;
   const eta = ms(order.etaAt);
@@ -91,8 +96,27 @@ export function senseOrder(
   // is late. Great Basin averages 31h, so assigning them a pickup is a
   // 7-hour breach we can see at T+0.
   const avgPickup = vendor?.stats?.avgPickupHours ?? 0;
-  const slaHours =
-    pickupAt !== null && pickupDue !== null ? (pickupDue - pickupAt) / H : 24;
+  const urgentPickup = order.pickup?.urgency === "stat";
+
+  // The window this order is actually being held to. Pickups measure
+  // from the nurse's trigger; deliveries from when the order was placed.
+  // Everything downstream escalates against THIS, not a fixed clock.
+  const isPickup = pickupAt !== null;
+  const slaWindowHours = isPickup
+    ? pickupDue !== null
+      ? (pickupDue - pickupAt) / H
+      : urgentPickup
+        ? policy.pickupUrgentSlaHours
+        : policy.pickupSlaHours
+    : order.urgency === "stat"
+      ? policy.statSlaHours
+      : policy.routineSlaHours;
+
+  const elapsedHours = isPickup
+    ? (now - pickupAt) / H
+    : lastMove
+      ? (now - (ms(order.timestamps.ordered) ?? lastMove)) / H
+      : 0;
 
   return {
     orderId: order.id,
@@ -107,7 +131,10 @@ export function senseOrder(
     vendorConnected: vendor?.connected ?? false,
     vendorAvgPickupHours: avgPickup,
     pickupPredictedBreachHours:
-      pickupAt === null ? 0 : Math.max(0, avgPickup - slaHours),
+      pickupAt === null ? 0 : Math.max(0, avgPickup - slaWindowHours),
+    slaWindowHours,
+    elapsedFrac: slaWindowHours > 0 ? elapsedHours / slaWindowHours : 0,
+    isUrgentPickup: urgentPickup,
     pickupAcknowledged: Boolean(order.pickup?.acknowledgedAt),
     pickupWindowCommitted: Boolean(order.pickup?.windowStart),
     urgency: order.urgency,
@@ -151,6 +178,14 @@ export function screen(
     order.state,
   );
 
+  // Rung timings scale with the window this order is held to. Absolute
+  // thresholds only work when every window is the same size, and they
+  // aren't: 90 minutes of silence is 6% of a 24h routine window but 19%
+  // of an 8h STAT one — same number, very different meaning.
+  const rung = (frac: number) =>
+    Math.max(p.ladderFloorMin / 60, f.slaWindowHours * frac);
+  const W = f.isUrgentPickup ? "URGENT pickup" : "pickup";
+
   if (inFlight && f.etaDeltaMin !== null) {
     if (f.etaDeltaMin > 0) {
       codes.push("eta_past_deadline");
@@ -172,16 +207,25 @@ export function screen(
   // Silence is the non-event this whole engine exists to catch.
   // Nobody dispatched. Nothing changed. A page-load model cannot
   // detect an absence; a heartbeat can.
+  const silenceLimitMin = Math.min(
+    p.dispatchSilenceMin,
+    rung(p.ladderAckFrac) * 60,
+  );
   if (
     inFlight &&
     order.state !== "in_transit" &&
-    f.dispatchSilenceMin > p.dispatchSilenceMin
+    f.dispatchSilenceMin > silenceLimitMin
   ) {
     codes.push("dispatch_silence");
-    score += 20 + Math.min(20, f.dispatchSilenceMin / 10);
+    // A STAT order burning its window is worth more than a routine one
+    // idling through a fraction of a much longer day.
+    score += (order.urgency === "stat" ? 32 : 20) + Math.min(20, f.elapsedFrac * 30);
     reasons.push(
       `${vendor?.name ?? "Vendor"} has not confirmed dispatch after ` +
-        `${Math.round(f.dispatchSilenceMin)} min (threshold: ${p.dispatchSilenceMin} min)`,
+        `${Math.round(f.dispatchSilenceMin)} min — ` +
+        `${Math.round(f.elapsedFrac * 100)}% through a ${fmtH(f.slaWindowHours)} ` +
+        `${order.urgency === "stat" ? "STAT" : "routine"} window ` +
+        `(threshold ${Math.round(silenceLimitMin)} min)`,
     );
   }
 
@@ -190,6 +234,10 @@ export function screen(
   // never happens and the nurse never has to wonder whether anyone is
   // coming. So: predict at T+0, then climb in stages, and keep the
   // early rungs silent.
+  // On a 24h routine pickup the rungs land on 2h / 6h / 12h / 18h —
+  // identical to before. On a 4h urgent pickup: 20m / 1h / 2h / 3h, so
+  // a nurse who needs that bed gone today hears about a stall while
+  // there is still time to call someone else.
   const age = f.pickupAgeHours;
   if (order.state === "pickup_triggered" && age !== null) {
     // T+0 — we know from history this vendor will miss, before they do.
@@ -203,34 +251,34 @@ export function screen(
       );
     }
     // T+2h — nobody at the vendor has even looked at it.
-    if (age > p.pickupAckHours && !f.pickupAcknowledged) {
+    if (age > rung(p.ladderAckFrac) && !f.pickupAcknowledged) {
       codes.push("pickup_no_ack");
-      score += 15;
+      score += f.isUrgentPickup ? 30 : 15;
       reasons.push(
-        `No dispatcher acknowledgment ${Math.round(age)}h after the nurse triggered pickup`,
+        `No dispatcher acknowledgment ${fmtH(age)} into a ${fmtH(f.slaWindowHours)} ${W} window`,
       );
     }
     // T+6h — acknowledged, but still no committed retrieval window. The
     // family cannot be told anything useful until this exists.
-    if (age > p.pickupWindowHours && !f.pickupWindowCommitted) {
+    if (age > rung(p.ladderWindowFrac) && !f.pickupWindowCommitted) {
       codes.push("pickup_no_window");
-      score += 20;
+      score += f.isUrgentPickup ? 35 : 20;
       reasons.push(
-        `No retrieval window committed ${Math.round(age)}h in — the family still ` +
-          `cannot be told when someone is coming`,
+        `No retrieval window committed ${fmtH(age)} into a ${fmtH(f.slaWindowHours)} ${W} window — ` +
+          `the family still cannot be told when someone is coming`,
       );
     }
     // T+12h — half the window gone with nothing scheduled. Offer a swap.
-    if (age > p.pickupBackupHours && !f.pickupWindowCommitted) {
+    if (age > rung(p.ladderBackupFrac) && !f.pickupWindowCommitted) {
       codes.push("pickup_needs_backup");
-      score += 25;
+      score += f.isUrgentPickup ? 40 : 25;
       reasons.push(
-        `${Math.round(p.pickupSlaHours - age)}h left on the ${p.pickupSlaHours}h window with no ` +
-          `retrieval scheduled — a backup vendor can still make it`,
+        `${fmtH(Math.max(0, f.slaWindowHours - age))} left on a ${fmtH(f.slaWindowHours)} ${W} window ` +
+          `with nothing scheduled — another vendor can still make it`,
       );
     }
     // T+18h — breach is now likely. Get the words ready for a human.
-    if (age > p.pickupFamilyHours && !f.pickupWindowCommitted) {
+    if (age > rung(p.ladderFamilyFrac) && !f.pickupWindowCommitted) {
       codes.push("pickup_family_notice");
       score += 20;
       reasons.push(
@@ -243,8 +291,8 @@ export function screen(
       codes.push("pickup_overdue_24h");
       score += 60 + Math.min(30, f.pickupOverdueHours * 2);
       reasons.push(
-        `Pickup was triggered ${Math.round(age)}h ago with no retrieval — ` +
-          `${Math.round(f.pickupOverdueHours)}h past the ${p.pickupSlaHours}h window`,
+        `Pickup was triggered ${fmtH(age)} ago with no retrieval — ` +
+          `${fmtH(f.pickupOverdueHours)} past the ${fmtH(f.slaWindowHours)} window`,
       );
     }
   }
@@ -442,7 +490,7 @@ export async function tick(now: number): Promise<TickResult> {
   const screened: (ScreenResult & { reasons: string[] })[] = [];
   for (const order of open) {
     const vendor = vendorById.get(order.vendorId);
-    const features = senseOrder(order, vendor, now);
+    const features = senseOrder(order, vendor, now, policy);
     const { codes, score, reasons } = screen(features, order, vendor, policy);
     if (codes.length > 0) {
       screened.push({ order, features, reasonCodes: codes, score, reasons });

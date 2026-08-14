@@ -45,6 +45,11 @@ export interface ProofOfDelivery {
 export interface Pickup {
   triggeredAt: string; // ISO
   triggeredBy: "nurse" | "emr"; // nurse-initiated primary, EMR fallback
+  // Distinct from the ORDER's urgency, which was about getting the
+  // equipment there. A pickup is urgent for different reasons: family
+  // distress, a small home where the bed blocks access, infection
+  // control, or another patient waiting on that serialized asset.
+  urgency?: Urgency;
   dueAt: string; // ISO — triggeredAt + 24h (deep dive: hospice pays until retrieval)
   completedAt?: string;
   condition?: ConditionCheck; // condition-on-return
@@ -145,6 +150,12 @@ export interface RiskFeatures {
   // Positive at T+0 means we know it will be late before it is late.
   vendorAvgPickupHours: number;
   pickupPredictedBreachHours: number;
+  // The window this order is actually being held to, in hours, and how
+  // far through it we are. Stage 3 ranks on elapsedFrac rather than raw
+  // hours — 3h into a 4h urgent window is worse than 8h into a 24h one.
+  slaWindowHours: number;
+  elapsedFrac: number;
+  isUrgentPickup: boolean;
   pickupAcknowledged: boolean;
   pickupWindowCommitted: boolean;
   urgency: Urgency;
@@ -224,12 +235,24 @@ export interface Policy {
   dispatchSilenceMin: number; // no movement this long = silence flag
   vendorStatRateFloor: number; // below this STAT on-time rate = degrading
   useAiTriage: boolean; // the rules-only toggle, flipped live on stage
-  // Pickup escalation ladder, in hours since the nurse triggered it.
-  // Four of the rungs resolve without anyone being told.
-  pickupAckHours: number; // no dispatcher acknowledgment
-  pickupWindowHours: number; // no committed retrieval window
-  pickupBackupHours: number; // propose reassignment
-  pickupFamilyHours: number; // draft the family message
+  // Urgent pickup window. STATED ASSUMPTION — the FAQ blessed 24h for
+  // routine retrieval but says nothing about urgent. 4h is our number.
+  pickupUrgentSlaHours: number;
+
+  // ── The escalation ladder ────────────────────────────────
+  // Fractions of the applicable window, not absolute hours. Absolute
+  // hours only work when every window is the same size, and they
+  // aren't: a STAT delivery has an 8h SLA, so a 12h escalation fires
+  // four hours after the deadline it was meant to protect.
+  //
+  // On a 24h routine pickup these reproduce 2h / 6h / 12h / 18h exactly.
+  // On a 4h urgent pickup they become 20m / 1h / 2h / 3h.
+  // On an 8h STAT delivery: 40m / 2h / 4h / 6h.
+  ladderAckFrac: number; // vendor hasn't acknowledged
+  ladderWindowFrac: number; // no committed window / no ETA
+  ladderBackupFrac: number; // propose reassignment — still recoverable
+  ladderFamilyFrac: number; // breach likely, draft the message
+  ladderFloorMin: number; // never fire a rung sooner than this
 }
 
 export const DEFAULT_POLICY: Policy = {
@@ -240,10 +263,12 @@ export const DEFAULT_POLICY: Policy = {
   dispatchSilenceMin: 90,
   vendorStatRateFloor: 0.85,
   useAiTriage: true,
-  pickupAckHours: 2,
-  pickupWindowHours: 6,
-  pickupBackupHours: 12,
-  pickupFamilyHours: 18,
+  pickupUrgentSlaHours: 4,
+  ladderAckFrac: 1 / 12, // 2h of 24h
+  ladderWindowFrac: 0.25, // 6h of 24h
+  ladderBackupFrac: 0.5, // 12h of 24h
+  ladderFamilyFrac: 0.75, // 18h of 24h
+  ladderFloorMin: 10, // a 4h window still shouldn't page anyone at 5 minutes
 };
 
 // ── The clock ────────────────────────────────────────────────
