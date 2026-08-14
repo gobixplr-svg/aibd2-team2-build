@@ -125,9 +125,13 @@ export async function GET(req: Request) {
         totalUsd: Number(costUsd.toFixed(4)),
         tokens,
         calls: ledger.length,
-        perOrderUsd: ledger.length
-          ? Number((costUsd / new Set(ledger.map((l) => l.orderId)).size).toFixed(4))
-          : 0,
+        // Sum the orders each call actually covered — a batched triage of
+        // four orders is four orders, not one.
+        ordersCovered: ledger.reduce((s, e) => s + (e.orderCount ?? 1), 0),
+        perOrderUsd: (() => {
+          const n = ledger.reduce((s, e) => s + (e.orderCount ?? 1), 0);
+          return n ? Number((costUsd / n).toFixed(5)) : 0;
+        })(),
       },
       money: { pickupOverdueUsd: Number(overdueUsd.toFixed(2)) },
       calibration: await getCalibration(),
