@@ -1,26 +1,80 @@
 @import "tailwindcss";
 
+/*
+  BetterRX design system — tokens extracted from betterrx.com production CSS
+  (template_tailwind.min.css brand tokens + observed usage), Aug 14 2026.
+  House rule: hex lives HERE only. Components use the semantic utilities
+  (bg-brand, text-status-at-risk, border-line, …) — never raw hex or
+  palette-named Tailwind classes.
+*/
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* BetterRX brand (verbatim from their token block) */
+  --brx-brand: #ef7869; /* coral — primary actions, brand moments */
+  --brx-brand-alt: #f4916c; /* salmon — gradients, hovers on brand */
+  --brx-navy: #24333f; /* headings, dark surfaces, footer */
+  --brx-teal: #1fb6bc; /* secondary accent */
+  --brx-secondary: #425b76; /* slate — secondary buttons, body emphasis */
+  --brx-secondary-hover: #374d65;
+  --brx-amber: #ffaf03; /* their CTA amber — we reserve it for warnings */
+  --brx-cream: #fdebda; /* soft highlight tint */
+
+  /* neutrals observed on the site */
+  --brx-page: #f5f5f5;
+  --brx-surface: #ffffff;
+  --brx-line: #e4e8ed;
+  --brx-line-strong: #dee2e5;
+  --brx-ink: #24333f;
+  --brx-ink-soft: #425b76;
+  --brx-muted: #666666;
+
+  /* derived (not on their site; darkened coral so "critical" outranks brand) */
+  --brx-critical: #c94434;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  --font-sans: var(--font-poppins);
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  /* brand */
+  --color-brand: var(--brx-brand);
+  --color-brand-alt: var(--brx-brand-alt);
+  --color-navy: var(--brx-navy);
+  --color-teal: var(--brx-teal);
+  --color-secondary: var(--brx-secondary);
+  --color-secondary-hover: var(--brx-secondary-hover);
+  --color-cream: var(--brx-cream);
+
+  /* surfaces & text */
+  --color-page: var(--brx-page);
+  --color-surface: var(--brx-surface);
+  --color-line: var(--brx-line);
+  --color-line-strong: var(--brx-line-strong);
+  --color-ink: var(--brx-ink);
+  --color-ink-soft: var(--brx-ink-soft);
+  --color-muted: var(--brx-muted);
+
+  /* order lifecycle — one token per state, badges/board read these */
+  --color-status-ordered: var(--brx-secondary);
+  --color-status-dispatched: var(--brx-teal);
+  --color-status-in-transit: var(--brx-teal);
+  --color-status-at-risk: var(--brx-amber);
+  --color-status-delivered: var(--brx-teal);
+  --color-status-pickup-triggered: var(--brx-secondary);
+  --color-status-pickup-delayed: var(--brx-critical);
+
+  /* alerts */
+  --color-warning: var(--brx-amber);
+  --color-critical: var(--brx-critical);
+
+  /* BetterRX radii */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--brx-page);
+  color: var(--brx-ink);
+  font-family: var(--font-poppins), Poppins, sans-serif;
 }
