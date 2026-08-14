@@ -54,6 +54,7 @@ function toPortalInbox(items: EngineInboxItem[]): InboxItem[] {
             : "family-message",
       title: i.title,
       detail: i.reasons.length ? `${i.detail} — ${i.reasons.join("; ")}` : i.detail,
+      draft: i.draft,
       needsApproval: i.status === "pending",
       resolved:
         i.status === "approved" || i.status === "auto_executed"
@@ -121,8 +122,8 @@ export function HospicePortal() {
     refresh();
   }
 
-  async function approveInbox(id: string) {
-    await postJson(`/api/inbox/${id}`, { action: "approve" });
+  async function approveInbox(id: string, draft?: string) {
+    await postJson(`/api/inbox/${id}`, { action: "approve", draft });
     refresh();
   }
 

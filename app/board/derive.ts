@@ -109,6 +109,9 @@ export interface InboxItem {
   detail: string;
   needsApproval: boolean;
   resolved?: "approved" | "dismissed";
+  // Claude-drafted message body (family messages). The card renders it
+  // editable; approving sends the human's edited version.
+  draft?: string;
 }
 
 export const INBOX_KIND_LABEL: Record<InboxKind, string> = {
