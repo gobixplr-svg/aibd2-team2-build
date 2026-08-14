@@ -19,10 +19,10 @@ export default function Home() {
 
         <nav className="grid grid-cols-1 md:grid-cols-2 gap-2">
           <Surface
-            href="/"
+            href="/board"
             title="Hospice board"
             who="admissions nurse · case manager · DON"
-            note="in progress — Garrett"
+            note="live — Dan"
           />
           <Surface
             href="/v/demo-vendor"
@@ -34,13 +34,13 @@ export default function Home() {
             href="/f/demo-family"
             title="Family tracker"
             who="family, read-only"
-            note="coming Sat — Garrett"
+            note="coming Sat — Dan"
           />
           <Surface
             href="/emr"
             title="EMR simulator"
             who="integration demo (HCHB / MatrixCare / Netsmart pattern)"
-            note="coming — Garrett"
+            note="coming — Dan"
           />
         </nav>
 
