@@ -14,10 +14,12 @@ export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
   try {
-    const { patientId, status } = (await req.json()) as {
+    const { patientId, status, source } = (await req.json()) as {
       patientId: string;
       status: "admitted" | "discharged" | "deceased";
+      source?: "nurse" | "emr";
     };
+    const by = source ?? "emr";
     const patient = await getPatient(patientId);
     if (!patient) {
       return NextResponse.json({ ok: false, error: "unknown patient" }, { status: 404 });
@@ -27,7 +29,7 @@ export async function POST(req: Request) {
       ...patient,
       status: status === "admitted" ? "active" : status === "discharged" ? "discharged" : "deceased",
     });
-    await appendEvent(patientStatusEvent(patientId, status, now, "emr"));
+    await appendEvent(patientStatusEvent(patientId, status, now, by));
 
     let pickupsTriggered = 0;
     if (status === "deceased") {
@@ -40,7 +42,7 @@ export async function POST(req: Request) {
           o.id,
           "pickup_triggered",
           now,
-          pickupPatch(now, "emr", world.policy.pickupSlaHours),
+          pickupPatch(now, by, world.policy.pickupSlaHours),
           "pickupTriggered",
         );
         pickupsTriggered++;
