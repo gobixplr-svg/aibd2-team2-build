@@ -24,7 +24,8 @@ npm run dev
 
 - Node ≥ 20 · Next.js (App Router) + TypeScript + Tailwind
 - `.env*` is gitignored — **never commit keys**; the shared Anthropic key lives in team chat only
-- Deploy to Vercel by hour 2 and demo from the deployed URL all weekend — never localhost
+- **Live at https://aibd2-team2-build.vercel.app — every push to `main` auto-deploys.** Demo from this URL all weekend, never localhost.
+- ⚠️ **Commit with the email linked to your GitHub account** or Vercel blocks your deploy ("commit author is not a valid email"). Fix, once, inside this repo: `git config user.email "<your-github-email-or-noreply-address>"`
 
 ## Working agreement
 
