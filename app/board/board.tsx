@@ -8,6 +8,8 @@ import { DeceasedConfirm } from "./deceased-confirm";
 import type { InboxItem } from "./derive";
 import { EmrTab } from "./emr-tab";
 import { EquipmentTab } from "./equipment-tab";
+import { MessageFamilyModal } from "./message-family-modal";
+import { NoteModal } from "./note-modal";
 import { OrderFormModal } from "./order-form";
 import { PatientsTab } from "./patients-tab";
 
@@ -62,6 +64,8 @@ export function HospicePortal({
   const [newOrderFor, setNewOrderFor] = useState<string | undefined>(undefined);
   const [newOrderOpen, setNewOrderOpen] = useState(false);
   const [deceasedFor, setDeceasedFor] = useState<string | null>(null);
+  const [messageFamilyFor, setMessageFamilyFor] = useState<string | null>(null);
+  const [noteFor, setNoteFor] = useState<string | null>(null);
 
   const vendorName = (id: string) => vendors.find((v) => v.id === id)?.name ?? id;
 
@@ -87,24 +91,27 @@ export function HospicePortal({
     setNewOrderOpen(false);
   }
 
-  function addNote(orderId: string, note: string) {
-    setOrders((os) => (os.map((o) => (o.id === orderId ? { ...o, note } : o))));
+  function saveNote(note: string) {
+    if (!noteFor) return;
+    setOrders((os) => os.map((o) => (o.id === noteFor ? { ...o, note } : o)));
+    setNoteFor(null);
   }
 
-  function messageFamily(patientId: string) {
+  function sendFamilyMessage(patientId: string, body: string) {
     const patient = patients.find((p) => p.id === patientId);
-    if (!patient) return;
+    if (!patient || !body) return;
     setInbox((ib) => [
       {
         id: `inbox-family-${inboxSeq++}`,
         kind: "family-message",
-        title: `Draft message to ${patient.label}'s family`,
-        detail: `Claude-drafted update ready to review for ${patient.label} — a person sends it, never Hermes alone.`,
-        needsApproval: true,
+        title: `Message sent to ${patient.label}'s family`,
+        detail: body,
+        needsApproval: false,
+        resolved: "approved",
       },
       ...ib,
     ]);
-    setTab("equipment");
+    setMessageFamilyFor(null);
   }
 
   function requestReroute(orderId: string) {
@@ -177,6 +184,10 @@ export function HospicePortal({
   }
 
   const deceasedPatient = deceasedFor ? patients.find((p) => p.id === deceasedFor) : undefined;
+  const messageFamilyPatient = messageFamilyFor
+    ? patients.find((p) => p.id === messageFamilyFor)
+    : undefined;
+  const noteOrder = noteFor ? orders.find((o) => o.id === noteFor) : undefined;
 
   return (
     <div className="flex flex-col min-h-dvh w-full">
@@ -216,8 +227,8 @@ export function HospicePortal({
               setNewOrderOpen(true);
             }}
             onRecordPassing={(patientId) => setDeceasedFor(patientId)}
-            onAddNote={addNote}
-            onMessageFamily={messageFamily}
+            onAddNote={setNoteFor}
+            onMessageFamily={setMessageFamilyFor}
           />
         )}
         {tab === "equipment" && (
@@ -227,8 +238,8 @@ export function HospicePortal({
             inbox={inbox}
             onApprove={approveInbox}
             onDismiss={dismissInbox}
-            onAddNote={addNote}
-            onMessageFamily={messageFamily}
+            onAddNote={setNoteFor}
+            onMessageFamily={setMessageFamilyFor}
             onRequestReroute={requestReroute}
           />
         )}
@@ -251,6 +262,24 @@ export function HospicePortal({
           orders={orders.filter((o) => o.patientId === deceasedPatient.id)}
           onConfirm={confirmPassing}
           onCancel={() => setDeceasedFor(null)}
+        />
+      )}
+
+      {messageFamilyPatient && (
+        <MessageFamilyModal
+          patient={messageFamilyPatient}
+          orders={orders.filter((o) => o.patientId === messageFamilyPatient.id)}
+          onSend={(body) => sendFamilyMessage(messageFamilyPatient.id, body)}
+          onCancel={() => setMessageFamilyFor(null)}
+        />
+      )}
+
+      {noteOrder && (
+        <NoteModal
+          title={`Note — ${noteOrder.patientLabel} · ${noteOrder.id}`}
+          initialNote={noteOrder.note ?? ""}
+          onSave={saveNote}
+          onCancel={() => setNoteFor(null)}
         />
       )}
     </div>

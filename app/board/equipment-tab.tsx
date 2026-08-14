@@ -32,7 +32,7 @@ export function EquipmentTab({
   inbox: InboxItem[];
   onApprove: (id: string) => void;
   onDismiss: (id: string) => void;
-  onAddNote: (orderId: string, note: string) => void;
+  onAddNote: (orderId: string) => void;
   onMessageFamily: (patientId: string) => void;
   onRequestReroute: (orderId: string) => void;
 }) {
@@ -183,10 +183,7 @@ export function EquipmentTab({
                       </div>
                       <div className="mt-3 flex flex-wrap justify-end gap-1.5">
                         <button
-                          onClick={() => {
-                            const note = window.prompt("Note", o.note ?? "");
-                            if (note !== null) onAddNote(o.id, note);
-                          }}
+                          onClick={() => onAddNote(o.id)}
                           className="rounded-md border border-line-strong bg-surface px-3 py-2 text-[11px] text-ink-soft"
                         >
                           Add note

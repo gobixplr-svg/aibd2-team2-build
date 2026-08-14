@@ -29,7 +29,7 @@ export function PatientsTab({
   vendorName: (id: string) => string;
   onNewOrder: (patientId: string) => void;
   onRecordPassing: (patientId: string) => void;
-  onAddNote: (orderId: string, note: string) => void;
+  onAddNote: (orderId: string) => void;
   onMessageFamily: (patientId: string) => void;
 }) {
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -187,9 +187,7 @@ export function PatientsTab({
                       <button
                         onClick={() => {
                           const target = patientOrders[0];
-                          if (!target) return;
-                          const note = window.prompt("Note", target.note ?? "");
-                          if (note !== null) onAddNote(target.id, note);
+                          if (target) onAddNote(target.id);
                         }}
                         className="rounded-md border border-line-strong bg-surface px-3 py-2 text-[11px] text-ink-soft"
                       >
