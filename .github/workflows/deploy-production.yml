@@ -1,0 +1,53 @@
+name: Deploy production
+
+# Author-independent production deploys — same pattern as nbd-labs-web.
+# Vercel's native Git integration blocks deploys when the commit author
+# (Will, Garrett) isn't a member of the Vercel account; token auth isn't
+# tied to the commit author, so every merge to `main` ships regardless
+# of who wrote it. Native auto-deploys are OFF in vercel.json so this
+# workflow is the single production deploy path (no double-deploy race).
+#
+# Secrets: VERCEL_TOKEN (currently Dan's CLI token — TODO(dan): replace
+# with a scoped token from vercel.com/account/tokens), VERCEL_ORG_ID,
+# VERCEL_PROJECT_ID.
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+
+      - name: Pull Vercel project settings (production)
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Build (production)
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Deploy to production
+        run: |
+          url=$(vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }})
+          echo "Deployed: $url"
+          echo "### ✅ Production deployed" >> "$GITHUB_STEP_SUMMARY"
+          echo "$url" >> "$GITHUB_STEP_SUMMARY"
