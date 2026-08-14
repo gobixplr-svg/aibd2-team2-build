@@ -12,6 +12,8 @@ Read these in the [prep repo](https://github.com/gobixplr-svg/ai-builder-day-2),
 2. `prep/betterrx/game-day-runbook.md` — kickoff script (the 2:00–3:00 contract hour), Q&A drill, pre-mortem
 3. `prep/betterrx/build-plan.md` — priority tiers and lanes
 
+**Your lane card is in this repo: [`docs/lane-cards.md`](docs/lane-cards.md) — mission, owned directories, ordered tasks, and the repo layout/merge rules.**
+
 **Nobody codes a feature until the order-record JSON contract is agreed (kickoff script, 2:10–2:30).**
 
 ## Setup
