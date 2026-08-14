@@ -12,17 +12,12 @@
 import { NextResponse } from "next/server";
 import { engineNow } from "@/lib/engine/clock";
 import { tick } from "@/lib/engine/tick";
+import { hermesAuthorized } from "@/lib/hermes-auth";
 
 export const dynamic = "force-dynamic";
 
-function authorized(req: Request): boolean {
-  const secret = process.env.HERMES_SECRET;
-  if (!secret) return true; // unset in local dev — no lock to pick
-  return req.headers.get("x-hermes-secret") === secret;
-}
-
 export async function POST(req: Request) {
-  if (!authorized(req)) {
+  if (!hermesAuthorized(req)) {
     return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 });
   }
   try {
