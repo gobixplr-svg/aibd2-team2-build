@@ -1,398 +1,247 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import type {
-  InboxItem,
+  InboxItem as EngineInboxItem,
   Order,
-  OrderState,
+  Patient,
   Vendor,
 } from "@/lib/contracts";
-import { draftStatusNote } from "@/lib/ai/draft-note";
 import { postJson, useWorld } from "@/lib/use-world";
+import { DeceasedConfirm } from "./deceased-confirm";
+import type { InboxItem } from "./derive";
+import { EmrTab } from "./emr-tab";
+import { EquipmentTab } from "./equipment-tab";
+import { OrderFormModal } from "./order-form";
+import { PatientsTab } from "./patients-tab";
 
-type ColumnKey = "incoming" | "active" | "delivered" | "pickup";
+// Garrett's tabbed portal (wireframe turn 2) on the /api/state data
+// layer: one page, three tabs, all state server-side. The tabs are
+// untouched — this container polls the world, adapts the engine's
+// inbox shape to the portal's display shape, and turns every local
+// mutation into a POST + refresh.
 
-const COLUMNS: {
-  key: ColumnKey;
-  title: string;
-  states: OrderState[];
-  dropState?: OrderState;
-}[] = [
-  { key: "incoming", title: "Incoming", states: ["ordered"] },
-  { key: "active", title: "Active", states: ["dispatched", "in_transit", "at_risk"], dropState: "dispatched" },
-  { key: "delivered", title: "Delivered", states: ["delivered"], dropState: "delivered" },
-  { key: "pickup", title: "Pickup", states: ["pickup_triggered", "pickup_delayed"], dropState: "pickup_triggered" },
-];
+const TABS = [
+  { key: "patients", label: "Patients" },
+  { key: "equipment", label: "Equipment" },
+  { key: "emr", label: "EMR simulator" },
+] as const;
 
-const STATE_LABEL: Record<OrderState, string> = {
-  ordered: "Ordered",
-  dispatched: "Dispatched",
-  in_transit: "In transit",
-  at_risk: "At risk",
-  delivered: "Delivered",
-  pickup_triggered: "Pickup due",
-  pickup_delayed: "Pickup delayed",
-};
-
-const STATE_BADGE: Record<OrderState, string> = {
-  ordered: "bg-status-ordered",
-  dispatched: "bg-status-dispatched",
-  in_transit: "bg-status-in-transit",
-  at_risk: "bg-status-at-risk",
-  delivered: "bg-status-delivered",
-  pickup_triggered: "bg-status-pickup-triggered",
-  pickup_delayed: "bg-status-pickup-delayed",
-};
-
-const LEGAL_DROPS: Record<ColumnKey, OrderState[]> = {
-  incoming: [],
-  active: ["ordered"],
-  delivered: ["dispatched", "in_transit", "at_risk"],
-  pickup: ["delivered"],
-};
+type TabKey = (typeof TABS)[number]["key"];
 
 interface WorldState {
   orders: Order[];
+  patients: Patient[];
   vendors: Vendor[];
-  inbox: InboxItem[];
+  inbox: EngineInboxItem[];
   money: { pickupOverdueUsd: number };
-  cost: { totalUsd: number; calls: number; perOrderUsd: number };
 }
 
-interface PendingMove {
-  order: Order;
-  toState: OrderState;
-  draft: string;
+// Engine inbox → portal display shape (derive.ts calls itself the
+// stand-in for exactly this adapter).
+function toPortalInbox(items: EngineInboxItem[]): InboxItem[] {
+  return items
+    .filter((i) => !i.silent)
+    .map((i) => ({
+      id: i.id,
+      kind:
+        i.source === "hermes"
+          ? i.proposedAction === "reroute_vendor"
+            ? "reroute"
+            : "hermes-action"
+          : i.source === "don_approval"
+            ? "don-approval"
+            : "family-message",
+      title: i.title,
+      detail: i.reasons.length ? `${i.detail} — ${i.reasons.join("; ")}` : i.detail,
+      needsApproval: i.status === "pending",
+      resolved:
+        i.status === "approved" || i.status === "auto_executed"
+          ? ("approved" as const)
+          : i.status === "rejected"
+            ? ("dismissed" as const)
+            : undefined,
+    }));
 }
 
-export function HospiceBoard() {
+export function HospicePortal() {
   const { state, error, refresh } = useWorld<WorldState>("?scope=hospice");
-  const [dragId, setDragId] = useState<string | null>(null);
-  const [pending, setPending] = useState<PendingMove | null>(null);
-  const [whyId, setWhyId] = useState<string | null>(null);
-  const [inboxOpen, setInboxOpen] = useState(false);
+  const [tab, setTab] = useState<TabKey>("patients");
+  const [emrLog, setEmrLog] = useState<string[]>([]);
+  const [newOrderFor, setNewOrderFor] = useState<string | undefined>(undefined);
+  const [newOrderOpen, setNewOrderOpen] = useState(false);
+  const [deceasedFor, setDeceasedFor] = useState<string | null>(null);
 
   if (error)
     return <div className="p-6 text-sm text-critical">State unavailable: {error}</div>;
   if (!state)
-    return <div className="p-6 text-sm text-muted">Connecting to Hermes…</div>;
+    return <div className="min-h-dvh bg-page" />;
 
-  const { orders, vendors, inbox, money } = state;
-  const engineNow = new Date(state.now).getTime();
+  const { orders, patients, vendors } = state;
+  const inbox = toPortalInbox(state.inbox);
   const vendorName = (id: string) => vendors.find((v) => v.id === id)?.name ?? id;
 
-  const pendingItems = inbox.filter((i) => i.status === "pending" && !i.silent);
-  const silentCount = inbox.filter((i) => i.silent).length;
-
-  function onDrop(col: (typeof COLUMNS)[number]) {
-    const order = orders.find((o) => o.id === dragId);
-    setDragId(null);
-    if (!order || !col.dropState) return;
-    if (!LEGAL_DROPS[col.key].includes(order.state)) return;
-    setPending({ order, toState: col.dropState, draft: draftStatusNote(order, col.dropState) });
+  async function placeOrder(order: Order) {
+    const { id: _clientId, state: _s, timestamps: _t, ...fields } = order;
+    await postJson("/api/orders", fields);
+    setNewOrderOpen(false);
+    refresh();
   }
 
-  async function confirmMove(note: string) {
-    if (!pending) return;
-    await postJson(`/api/orders/${pending.order.id}/transition`, {
-      to: pending.toState,
-      note: note || undefined,
-      pickupBy: pending.toState === "pickup_triggered" ? "nurse" : undefined,
+  async function addNote(orderId: string, note: string) {
+    await postJson(`/api/orders/${orderId}/note`, { note });
+    refresh();
+  }
+
+  async function messageFamily(patientId: string) {
+    const patient = patients.find((p) => p.id === patientId);
+    if (!patient) return;
+    await postJson("/api/inbox", {
+      source: "family_message",
+      tier: "human_facing",
+      patientId,
+      title: `Draft message to ${patient.label}'s family`,
+      detail: `Claude-drafted update ready to review for ${patient.label} — a person sends it, never Hermes alone.`,
     });
-    setPending(null);
+    setTab("equipment");
     refresh();
   }
 
-  async function resolveInbox(id: string, action: "approve" | "reject") {
-    await postJson(`/api/inbox/${id}`, { action });
+  async function requestReroute(orderId: string) {
+    const order = orders.find((o) => o.id === orderId);
+    if (!order) return;
+    await postJson("/api/inbox", {
+      source: "hermes",
+      tier: "consequential",
+      orderId,
+      proposedAction: "reroute_vendor",
+      title: `Reroute ${order.id} to backup vendor?`,
+      detail: `${order.patientLabel} — ${order.items.map((i) => i.name).join(", ")}, currently with ${vendorName(order.vendorId)}. Reroute posts here as an approval; a person still taps it.`,
+    });
     refresh();
   }
 
-  function hoursLeft(iso: string): { text: string; overdue: boolean } {
-    const ms = new Date(iso).getTime() - engineNow;
-    const h = Math.floor(Math.abs(ms) / 3600_000);
-    const m = Math.floor((Math.abs(ms) % 3600_000) / 60_000);
-    const text = h > 0 ? `${h}h ${m}m` : `${m}m`;
-    return ms < 0 ? { text: `${text} over`, overdue: true } : { text, overdue: false };
+  async function approveInbox(id: string) {
+    await postJson(`/api/inbox/${id}`, { action: "approve" });
+    refresh();
   }
+
+  async function dismissInbox(id: string) {
+    await postJson(`/api/inbox/${id}`, { action: "reject" });
+    refresh();
+  }
+
+  async function confirmPassing() {
+    if (!deceasedFor) return;
+    await postJson("/api/emr-event", {
+      patientId: deceasedFor,
+      status: "deceased",
+      source: "nurse",
+    });
+    setDeceasedFor(null);
+    refresh();
+  }
+
+  async function fireEmrEvent(patient: Patient, type: string, to: Patient["status"]) {
+    void to; // server derives the stored status from the event type
+    const status =
+      type === "admit" || type === "admitted"
+        ? "admitted"
+        : type === "discharge" || type === "discharged"
+          ? "discharged"
+          : "deceased";
+    await postJson("/api/emr-event", { patientId: patient.id, status, source: "emr" });
+    setEmrLog((l) =>
+      [
+        `${new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" })} → newOrUpdatePatient (${status}) · ${patient.label}`,
+        ...l,
+      ].slice(0, 8),
+    );
+    refresh();
+  }
+
+  const deceasedPatient = deceasedFor ? patients.find((p) => p.id === deceasedFor) : undefined;
 
   return (
-    <main className="flex-1 p-3 lg:p-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 items-start">
-      <div className="md:col-span-2 xl:col-span-4 flex items-center justify-between flex-wrap gap-2">
-        <div className="flex items-center gap-3">
-          <Link
-            href="/board/new"
-            className="rounded-md bg-brand px-3 py-2 text-sm font-semibold text-white"
-          >
-            + New order
-          </Link>
-          {money.pickupOverdueUsd > 0 && (
-            <span className="text-xs font-semibold text-critical tabular-nums">
-              ${money.pickupOverdueUsd.toFixed(2)} accruing on overdue pickups
-            </span>
-          )}
-        </div>
-        <button
-          onClick={() => setInboxOpen((v) => !v)}
-          className={`relative rounded-md px-3 py-2 text-sm font-semibold ${
-            pendingItems.length > 0
-              ? "bg-warning/20 text-ink border border-warning"
-              : "border border-line text-ink-soft"
-          }`}
-        >
-          Approvals
-          {pendingItems.length > 0 && (
-            <span className="ml-1.5 rounded-full bg-critical px-1.5 py-0.5 text-[11px] font-bold text-white">
-              {pendingItems.length}
-            </span>
-          )}
-        </button>
-      </div>
-
-      {inboxOpen && (
-        <div className="md:col-span-2 xl:col-span-4 rounded-lg border border-line bg-surface p-3 flex flex-col gap-2">
-          <div className="flex items-baseline justify-between">
-            <div className="text-xs font-semibold uppercase tracking-wider text-muted">
-              Approval inbox — Hermes proposes, you decide
-            </div>
-            {silentCount > 0 && (
-              <div className="text-[11px] text-muted">
-                + {silentCount} handled silently by Hermes (logged)
-              </div>
-            )}
-          </div>
-          {inbox
-            .filter((i) => !i.silent)
-            .map((item) => (
-              <div
-                key={item.id}
-                className={`rounded-md border p-2.5 ${
-                  item.status !== "pending"
-                    ? "border-line opacity-60"
-                    : "border-warning bg-warning/5"
+    <div className="flex flex-col min-h-dvh w-full">
+      <header className="bg-navy text-white">
+        <div className="mx-auto flex w-full max-w-7xl items-center gap-6 px-4">
+          <div className="py-3.5 text-[15px] font-bold">Handoff</div>
+          <nav className="flex gap-0.5 self-stretch text-xs">
+            {TABS.map((t) => (
+              <button
+                key={t.key}
+                onClick={() => setTab(t.key)}
+                className={`border-b-[3px] px-4 py-4 ${
+                  tab === t.key
+                    ? "border-brand font-medium text-white"
+                    : "border-transparent text-white/60"
                 }`}
               >
-                <div className="flex items-baseline justify-between gap-2">
-                  <span className="text-sm font-semibold text-ink">{item.title}</span>
-                  <span className="text-[10px] uppercase tracking-wide text-muted">
-                    {item.source === "hermes"
-                      ? `Hermes · ${item.tier}`
-                      : item.source === "don_approval"
-                        ? "DON approval"
-                        : "Family message"}
-                  </span>
-                </div>
-                <p className="mt-1 text-xs text-ink-soft">{item.detail}</p>
-                {item.reasons.length > 0 && (
-                  <ul className="mt-1 flex flex-col gap-0.5">
-                    {item.reasons.map((r) => (
-                      <li key={r} className="text-[11px] text-muted">
-                        • {r}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                {item.draft && (
-                  <div className="mt-1.5 rounded-md bg-cream px-2.5 py-1.5 text-xs italic text-ink-soft">
-                    &ldquo;{item.draft}&rdquo;
-                  </div>
-                )}
-                {item.status === "pending" ? (
-                  <div className="mt-2 flex gap-2">
-                    <button
-                      onClick={() => resolveInbox(item.id, "approve")}
-                      className="rounded-md bg-teal px-3 py-1.5 text-xs font-semibold text-white"
-                    >
-                      {item.source === "family_message" ? "Approve & send" : "Approve"}
-                    </button>
-                    <button
-                      onClick={() => resolveInbox(item.id, "reject")}
-                      className="rounded-md border border-line px-3 py-1.5 text-xs font-semibold text-ink-soft"
-                    >
-                      Reject
-                    </button>
-                  </div>
-                ) : (
-                  <div className="mt-1.5 text-[11px] font-semibold text-muted">
-                    {item.status === "approved"
-                      ? `✓ Approved${item.resolvedBy ? ` by ${item.resolvedBy}` : ""}`
-                      : item.status === "auto_executed"
-                        ? "Auto-executed (reversible tier, logged)"
-                        : "Rejected"}
-                  </div>
-                )}
-              </div>
+                {t.label}
+              </button>
             ))}
-          {inbox.filter((i) => !i.silent).length === 0 && (
-            <div className="text-xs text-muted py-2">
-              Empty — which is the point. A good night shift ends with nothing here.
-            </div>
-          )}
-        </div>
-      )}
-
-      {COLUMNS.map((col) => {
-        const cards = orders.filter((o) => col.states.includes(o.state));
-        return (
-          <section
-            key={col.key}
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={() => onDrop(col)}
-            className="rounded-lg bg-page border border-line flex flex-col gap-2 p-2 min-h-40"
-          >
-            <h2 className="px-1 text-xs font-semibold uppercase tracking-wider text-muted">
-              {col.title} ({cards.length})
-            </h2>
-            {cards.map((o) => {
-              const clock =
-                o.state === "pickup_triggered" || o.state === "pickup_delayed"
-                  ? o.pickup && hoursLeft(o.pickup.dueAt)
-                  : hoursLeft(o.targetAt);
-              return (
-                <article
-                  key={o.id}
-                  draggable
-                  onDragStart={() => setDragId(o.id)}
-                  className={`rounded-lg bg-surface border p-3 shadow-sm cursor-grab active:cursor-grabbing ${
-                    o.state === "at_risk" ? "border-warning" : "border-line"
-                  }`}
-                >
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <span
-                      className={`${STATE_BADGE[o.state]} rounded-sm px-1.5 py-0.5 text-[11px] font-semibold text-white`}
-                    >
-                      {STATE_LABEL[o.state]}
-                    </span>
-                    {o.urgency === "stat" && (
-                      <span className="rounded-sm bg-navy px-1.5 py-0.5 text-[11px] font-bold text-white">
-                        STAT
-                      </span>
-                    )}
-                    {clock && (
-                      <span
-                        className={`ml-auto text-[11px] font-medium tabular-nums ${
-                          clock.overdue ? "text-critical" : "text-muted"
-                        }`}
-                      >
-                        {clock.text}
-                      </span>
-                    )}
-                    {o.risk && (
-                      <button
-                        onClick={() => setWhyId(whyId === o.id ? null : o.id)}
-                        className="rounded-sm bg-warning/20 px-1.5 py-0.5 text-[11px] font-semibold text-ink"
-                      >
-                        why? ({o.risk.score})
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="mt-1.5 text-sm font-semibold text-ink">{o.patientLabel}</div>
-                  <div className="text-xs text-muted">{vendorName(o.vendorId)}</div>
-
-                  <ul className="mt-1">
-                    {o.items.map((it) => (
-                      <li key={it.hcpcs} className="text-xs text-ink-soft">
-                        <span className="font-mono text-[10px] text-muted mr-1">{it.hcpcs}</span>
-                        {it.name}
-                      </li>
-                    ))}
-                  </ul>
-
-                  {whyId === o.id && o.risk && (
-                    <div className="mt-2 rounded-md border border-warning bg-warning/10 p-2">
-                      <div className="text-[11px] font-bold uppercase tracking-wide text-ink">
-                        Why flagged
-                      </div>
-                      <ul className="mt-1 flex flex-col gap-1">
-                        {o.risk.reasons.map((r) => (
-                          <li key={r} className="text-xs text-ink-soft">
-                            • {r}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-
-                  {o.note && (
-                    <div className="mt-2 rounded-md bg-cream px-2 py-1 text-[11px] text-ink-soft">
-                      {o.note}
-                    </div>
-                  )}
-                </article>
-              );
-            })}
-            {cards.length === 0 && (
-              <div className="rounded-md border border-dashed border-line-strong px-2 py-5 text-center text-xs text-muted">
-                Drop orders here
-              </div>
+          </nav>
+          <div className="ml-auto flex items-center gap-2.5 py-3.5 text-[11px] text-white/70">
+            {state.money.pickupOverdueUsd > 0 && (
+              <span className="font-semibold text-white tabular-nums">
+                ${state.money.pickupOverdueUsd.toFixed(2)} accruing
+              </span>
             )}
-          </section>
-        );
-      })}
-
-      {pending && (
-        <NoteModal pending={pending} onConfirm={confirmMove} onCancel={() => setPending(null)} />
-      )}
-    </main>
-  );
-}
-
-function NoteModal({
-  pending,
-  onConfirm,
-  onCancel,
-}: {
-  pending: PendingMove;
-  onConfirm: (note: string) => void;
-  onCancel: () => void;
-}) {
-  const [note, setNote] = useState(pending.draft);
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center sm:justify-center bg-navy/60"
-      onClick={onCancel}
-    >
-      <div
-        className="w-full max-w-md mx-auto rounded-t-xl sm:rounded-xl bg-surface p-4 pb-8 sm:pb-4 flex flex-col gap-3"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div>
-          <h2 className="text-base font-bold text-ink">
-            Move to {STATE_LABEL[pending.toState]}
-          </h2>
-          <p className="text-xs text-muted">
-            {pending.order.patientLabel} · {pending.order.items.map((i) => i.name).join(", ")}
-          </p>
+            <span>M. Ruiz, RN · case manager</span>
+            <span className="inline-block h-[26px] w-[26px] rounded-full bg-secondary" />
+          </div>
         </div>
-        <label className="flex flex-col gap-1">
-          <span className="text-xs font-semibold text-ink-soft">
-            Status note{" "}
-            <span className="font-normal text-muted">(AI first draft — edit or submit as-is)</span>
-          </span>
-          <textarea
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            rows={3}
-            className="rounded-md border border-line px-3 py-2 text-sm text-ink"
+      </header>
+
+      <div className="mx-auto w-full max-w-7xl flex-1 bg-surface">
+        {tab === "patients" && (
+          <PatientsTab
+            patients={patients}
+            orders={orders}
+            vendorName={vendorName}
+            onNewOrder={(patientId) => {
+              setNewOrderFor(patientId);
+              setNewOrderOpen(true);
+            }}
+            onRecordPassing={(patientId) => setDeceasedFor(patientId)}
+            onAddNote={addNote}
+            onMessageFamily={messageFamily}
           />
-        </label>
-        <div className="flex gap-2">
-          <button
-            onClick={onCancel}
-            className="flex-1 rounded-md border border-line px-3 py-3 text-sm font-semibold text-ink-soft"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={() => onConfirm(note.trim())}
-            className="flex-[2] rounded-md bg-brand px-3 py-3 text-sm font-semibold text-white active:bg-brand-alt"
-          >
-            Confirm move
-          </button>
-        </div>
+        )}
+        {tab === "equipment" && (
+          <EquipmentTab
+            orders={orders}
+            vendorName={vendorName}
+            inbox={inbox}
+            onApprove={approveInbox}
+            onDismiss={dismissInbox}
+            onAddNote={addNote}
+            onMessageFamily={messageFamily}
+            onRequestReroute={requestReroute}
+          />
+        )}
+        {tab === "emr" && <EmrTab patients={patients} log={emrLog} onFire={fireEmrEvent} />}
       </div>
+
+      {newOrderOpen && (
+        <OrderFormModal
+          vendors={vendors}
+          patients={patients}
+          initialPatientId={newOrderFor}
+          onPlace={placeOrder}
+          onCancel={() => setNewOrderOpen(false)}
+        />
+      )}
+
+      {deceasedPatient && (
+        <DeceasedConfirm
+          patient={deceasedPatient}
+          orders={orders.filter((o) => o.patientId === deceasedPatient.id)}
+          onConfirm={confirmPassing}
+          onCancel={() => setDeceasedFor(null)}
+        />
+      )}
     </div>
   );
 }
