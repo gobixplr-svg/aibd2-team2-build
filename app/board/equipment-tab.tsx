@@ -30,7 +30,7 @@ export function EquipmentTab({
   orders: Order[];
   vendorName: (id: string) => string;
   inbox: InboxItem[];
-  onApprove: (id: string) => void;
+  onApprove: (id: string, draft?: string) => void;
   onDismiss: (id: string) => void;
   onAddNote: (orderId: string, note: string) => void;
   onMessageFamily: (patientId: string) => void;
@@ -39,6 +39,9 @@ export function EquipmentTab({
   const [expanded, setExpanded] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<string>("All");
+  // Local edits to Claude drafts, keyed by inbox id. The edited text is
+  // what Approve sends — the human's version wins, always.
+  const [draftEdits, setDraftEdits] = useState<Record<string, string>>({});
 
   const categories = Array.from(
     new Set(orders.flatMap((o) => o.items.map((it) => categoryOf(it.hcpcs)))),
@@ -237,12 +240,32 @@ export function EquipmentTab({
                   </span>
                 </div>
                 <div className="my-1.5 text-[11px] leading-relaxed text-ink">{a.detail}</div>
+                {a.draft !== undefined && (
+                  <div className="mb-2">
+                    <div className="mb-1 text-[9px] uppercase tracking-wide text-muted">
+                      Draft — edit before sending
+                    </div>
+                    <textarea
+                      value={draftEdits[a.id] ?? a.draft}
+                      onChange={(e) =>
+                        setDraftEdits((d) => ({ ...d, [a.id]: e.target.value }))
+                      }
+                      rows={4}
+                      className="w-full resize-none rounded-md border border-dashed border-line-strong bg-page px-2.5 py-2 text-[11px] leading-relaxed text-ink"
+                    />
+                  </div>
+                )}
                 <div className="flex gap-1.5">
                   <button
-                    onClick={() => onApprove(a.id)}
+                    onClick={() =>
+                      onApprove(
+                        a.id,
+                        a.draft !== undefined ? (draftEdits[a.id] ?? a.draft) : undefined,
+                      )
+                    }
                     className="rounded-md bg-brand px-3 py-1.5 text-[10px] font-semibold text-white"
                   >
-                    Approve
+                    {a.draft !== undefined ? "Approve & send" : "Approve"}
                   </button>
                   <button
                     onClick={() => onDismiss(a.id)}

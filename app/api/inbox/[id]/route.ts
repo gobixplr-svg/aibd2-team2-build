@@ -12,15 +12,19 @@ export const dynamic = "force-dynamic";
 export async function POST(req: Request, ctx: RouteContext<"/api/inbox/[id]">) {
   try {
     const { id } = await ctx.params;
-    const { action, resolvedBy } = (await req.json()) as {
+    const { action, resolvedBy, draft } = (await req.json()) as {
       action: "approve" | "reject";
       resolvedBy?: string;
+      // Human's edited version of a Claude draft — the edit is the
+      // point of the human_facing tier, so approving persists it.
+      draft?: string;
     };
     const item = (await getInbox()).find((i) => i.id === id);
     if (!item) return NextResponse.json({ ok: false, error: "unknown item" }, { status: 404 });
     const now = await engineNow();
     const next = {
       ...item,
+      draft: action === "approve" && draft !== undefined ? draft : item.draft,
       status: action === "approve" ? ("approved" as const) : ("rejected" as const),
       resolvedAt: new Date(now).toISOString(),
       resolvedBy: resolvedBy ?? "case-manager",

@@ -359,7 +359,7 @@ export interface MessageTriage {
 // is a measured number, not an estimate.
 export interface TokenLedgerEntry {
   at: string;
-  kind: "triage" | "family_draft" | "message_triage" | "order_intake";
+  kind: "triage" | "family_draft" | "message_triage" | "order_intake" | "status_note";
   orderId?: string;
   // Stage 3 batches every flagged order into ONE call, so cost-per-order
   // is total / orders-covered. Without this the batch looks like a
