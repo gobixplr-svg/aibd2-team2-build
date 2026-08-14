@@ -34,7 +34,7 @@ import type {
   ScreenResult,
   Vendor,
 } from "@/lib/contracts";
-import { EQUIPMENT } from "@/lib/data/catalog";
+import { EQUIPMENT, isRespiratory } from "@/lib/data/catalog";
 import {
   appendEvent,
   getInbox,
@@ -99,7 +99,7 @@ export function senseOrder(
     vendorConnected: vendor?.connected ?? false,
     urgency: order.urgency,
     itemCount: order.items.length,
-    isOxygen: order.items.some((i) => EQUIPMENT[i.hcpcs]?.oxygen === true),
+    isOxygen: order.items.some((i) => isRespiratory(i.hcpcs)),
   };
 }
 
@@ -211,10 +211,16 @@ export function screen(
     );
   }
 
-  // Oxygen failure is a safety question, not a service question.
+  // Respiratory failure is a safety question, not a service question.
+  // Named explicitly because "includes oxygen" on a CPAP order is
+  // clinically wrong, and a hospice judge would catch it.
   if (f.isOxygen && codes.length > 0) {
+    const resp = order.items.find((i) => isRespiratory(i.hcpcs));
     score += 10;
-    reasons.push("Order includes oxygen — treat delay as a safety issue, not a service issue");
+    reasons.push(
+      `Order includes ${resp?.name ?? "respiratory equipment"} — treat delay as a ` +
+        `patient-safety issue, not a service issue`,
+    );
   }
 
   return { codes, score: Math.min(100, Math.round(score)), reasons };
@@ -387,12 +393,20 @@ export async function tick(now: number): Promise<TickResult> {
       ? { ...base, tier: ai.tier, proposedAction: ai.action }
       : base;
 
-    const dupe = inbox.some(
-      (i) =>
-        i.orderId === s.order.id &&
-        i.proposedAction === proposal.proposedAction &&
-        i.status === "pending",
-    );
+    // Dedup across ALL statuses, not just pending. Reversible actions
+    // are created already-executed, so a pending-only check meant every
+    // tick minted another "nudge vendor" — three ticks, three identical
+    // rows, and a nurse's inbox buried by the thing meant to help her.
+    // Rejected is the one exception: if a human said no, a later tick
+    // may legitimately re-propose.
+    const dupe = inbox
+      .concat(newItems)
+      .some(
+        (i) =>
+          i.orderId === s.order.id &&
+          i.proposedAction === proposal.proposedAction &&
+          i.status !== "rejected",
+      );
     if (dupe) continue;
 
     newItems.push({
