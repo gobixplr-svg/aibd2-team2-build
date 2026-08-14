@@ -60,6 +60,29 @@ export const STUB_ORDERS: Order[] = [
   },
 ];
 
+STUB_ORDERS.push({
+  id: "ord-0961",
+  patientId: "p4",
+  patientLabel: "D. Whitmer",
+  address: "3310 S Redwood Rd, West Valley",
+  items: [{ hcpcs: "E0250", name: "Hospital bed, semi-electric", assetId: "WMS-B-1147" }],
+  urgency: "routine",
+  vendorId: "v1",
+  targetAt: new Date(Date.now() - 30 * 3600_000).toISOString(),
+  state: "pickup_triggered",
+  note: "Patient passed yesterday evening. Family present — call ahead.",
+  pickup: {
+    triggeredAt: new Date(Date.now() - 5 * 3600_000).toISOString(),
+    triggeredBy: "nurse",
+    dueAt: new Date(Date.now() + 19 * 3600_000).toISOString(),
+  },
+  timestamps: {
+    ordered: new Date(Date.now() - 31 * 24 * 3600_000).toISOString(),
+    delivered: new Date(Date.now() - 30 * 24 * 3600_000).toISOString(),
+    pickup_triggered: new Date(Date.now() - 5 * 3600_000).toISOString(),
+  },
+});
+
 export function vendorByToken(token: string): Vendor | undefined {
   return STUB_VENDORS.find((v) => v.token === token);
 }

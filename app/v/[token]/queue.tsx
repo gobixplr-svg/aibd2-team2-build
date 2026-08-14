@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { Order, OrderState } from "@/lib/contracts";
+import { PodSheet, type PodResult } from "./pod-sheet";
 
 const ETA_CHOICES = [
   { label: "Within 1 hour", hours: 1 },
@@ -31,25 +32,22 @@ const STATE_BADGE: Record<OrderState, string> = {
   pickup_delayed: "bg-status-pickup-delayed",
 };
 
-// Dispatcher's next action per state. transition() (Will's engine) becomes
-// the writer once it lands — for now state advances locally so the flow demos.
-const NEXT: Partial<Record<OrderState, { to: OrderState; label: string }>> = {
-  dispatched: { to: "in_transit", label: "Start route" },
-  in_transit: { to: "delivered", label: "Mark delivered" },
-  at_risk: { to: "delivered", label: "Mark delivered" },
-};
-
 function timeLeft(iso: string): { text: string; overdue: boolean } {
   const ms = new Date(iso).getTime() - Date.now();
   const h = Math.floor(Math.abs(ms) / 3600_000);
   const m = Math.floor((Math.abs(ms) % 3600_000) / 60_000);
   const text = h > 0 ? `${h}h ${m}m` : `${m}m`;
-  return ms < 0 ? { text: `${text} overdue`, overdue: true } : { text: `${text} left`, overdue: false };
+  return ms < 0
+    ? { text: `${text} overdue`, overdue: true }
+    : { text: `${text} left`, overdue: false };
 }
+
+type SheetTarget = { order: Order; mode: "delivery" | "pickup" } | null;
 
 export function VendorQueue({ initialOrders }: { initialOrders: Order[] }) {
   const [orders, setOrders] = useState(initialOrders);
   const [accepting, setAccepting] = useState<string | null>(null);
+  const [sheet, setSheet] = useState<SheetTarget>(null);
 
   function update(id: string, patch: Partial<Order>) {
     setOrders((os) => os.map((o) => (o.id === id ? { ...o, ...patch } : o)));
@@ -64,17 +62,43 @@ export function VendorQueue({ initialOrders }: { initialOrders: Order[] }) {
     setAccepting(null);
   }
 
-  function advance(order: Order) {
-    const next = NEXT[order.state];
-    if (!next) return;
+  function startRoute(order: Order) {
     update(order.id, {
-      state: next.to,
-      timestamps: { ...order.timestamps, [next.to]: new Date().toISOString() },
+      state: "in_transit",
+      timestamps: { ...order.timestamps, in_transit: new Date().toISOString() },
     });
   }
 
+  function confirmPod(target: NonNullable<SheetTarget>, pod: PodResult) {
+    const { order, mode } = target;
+    const now = new Date().toISOString();
+    if (mode === "delivery") {
+      update(order.id, {
+        state: "delivered",
+        pod: { photoUrl: pod.photoUrl, signedBy: pod.signedBy, at: now, condition: pod.condition },
+        timestamps: { ...order.timestamps, delivered: now },
+      });
+    } else {
+      update(order.id, {
+        pickup: order.pickup
+          ? { ...order.pickup, completedAt: now, condition: pod.condition }
+          : undefined,
+      });
+    }
+    setSheet(null);
+  }
+
   const incoming = orders.filter((o) => o.state === "ordered");
-  const active = orders.filter((o) => o.state !== "ordered");
+  const active = orders.filter((o) =>
+    ["dispatched", "in_transit", "at_risk"].includes(o.state),
+  );
+  const pickups = orders.filter(
+    (o) =>
+      ["pickup_triggered", "pickup_delayed"].includes(o.state) && !o.pickup?.completedAt,
+  );
+  const done = orders.filter(
+    (o) => (o.state === "delivered" && o.pod) || o.pickup?.completedAt,
+  );
 
   return (
     <main className="flex-1 px-3 py-4 flex flex-col gap-6">
@@ -83,9 +107,7 @@ export function VendorQueue({ initialOrders }: { initialOrders: Order[] }) {
           <OrderCard key={o.id} order={o}>
             {accepting === o.id ? (
               <div className="flex flex-col gap-1.5 pt-2">
-                <div className="text-xs font-medium text-ink-soft">
-                  Set delivery ETA:
-                </div>
+                <div className="text-xs font-medium text-ink-soft">Set delivery ETA:</div>
                 {ETA_CHOICES.map((c) => (
                   <button
                     key={c.label}
@@ -112,18 +134,46 @@ export function VendorQueue({ initialOrders }: { initialOrders: Order[] }) {
       <Section title={`Active (${active.length})`}>
         {active.map((o) => (
           <OrderCard key={o.id} order={o}>
-            {NEXT[o.state] && (
-              <button
-                onClick={() => advance(o)}
-                className="mt-2 w-full rounded-md bg-secondary px-3 py-3 text-sm font-semibold text-white active:bg-secondary-hover"
-              >
-                {NEXT[o.state]!.label}
-              </button>
+            {o.state === "dispatched" && (
+              <ActionBtn onClick={() => startRoute(o)}>Start route</ActionBtn>
+            )}
+            {(o.state === "in_transit" || o.state === "at_risk") && (
+              <ActionBtn onClick={() => setSheet({ order: o, mode: "delivery" })}>
+                Mark delivered
+              </ActionBtn>
             )}
           </OrderCard>
         ))}
         {active.length === 0 && <Empty text="Nothing in progress." />}
       </Section>
+
+      <Section title={`Pickups (${pickups.length})`}>
+        {pickups.map((o) => (
+          <OrderCard key={o.id} order={o} clockIso={o.pickup?.dueAt}>
+            <ActionBtn onClick={() => setSheet({ order: o, mode: "pickup" })}>
+              Mark picked up
+            </ActionBtn>
+          </OrderCard>
+        ))}
+        {pickups.length === 0 && <Empty text="No pickups due." />}
+      </Section>
+
+      {done.length > 0 && (
+        <Section title={`Done today (${done.length})`}>
+          {done.map((o) => (
+            <OrderCard key={o.id} order={o} done />
+          ))}
+        </Section>
+      )}
+
+      {sheet && (
+        <PodSheet
+          order={sheet.order}
+          mode={sheet.mode}
+          onConfirm={(pod) => confirmPod(sheet, pod)}
+          onCancel={() => setSheet(null)}
+        />
+      )}
     </main>
   );
 }
@@ -147,28 +197,74 @@ function Empty({ text }: { text: string }) {
   );
 }
 
-function OrderCard({ order, children }: { order: Order; children?: React.ReactNode }) {
-  const deadline = timeLeft(order.targetAt);
+function ActionBtn({
+  onClick,
+  children,
+}: {
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
   return (
-    <div className="rounded-lg bg-surface border border-line p-3 shadow-sm">
-      <div className="flex items-center gap-2">
+    <button
+      onClick={onClick}
+      className="mt-2 w-full rounded-md bg-secondary px-3 py-3 text-sm font-semibold text-white active:bg-secondary-hover"
+    >
+      {children}
+    </button>
+  );
+}
+
+function ConditionChip({ order }: { order: Order }) {
+  const cond = order.pickup?.condition ?? order.pod?.condition;
+  if (!cond) return null;
+  const ok = cond.clean && cond.functional && cond.complete;
+  return ok ? (
+    <span className="rounded-sm bg-teal/15 px-1.5 py-0.5 text-[11px] font-semibold text-teal">
+      Condition ✓
+    </span>
+  ) : (
+    <span className="rounded-sm bg-warning/20 px-1.5 py-0.5 text-[11px] font-semibold text-ink">
+      Condition issue: {cond.note}
+    </span>
+  );
+}
+
+function OrderCard({
+  order,
+  children,
+  clockIso,
+  done,
+}: {
+  order: Order;
+  children?: React.ReactNode;
+  clockIso?: string;
+  done?: boolean;
+}) {
+  const clock = timeLeft(clockIso ?? order.targetAt);
+  const pickedUp = !!order.pickup?.completedAt;
+  return (
+    <div className={`rounded-lg bg-surface border border-line p-3 shadow-sm ${done ? "opacity-80" : ""}`}>
+      <div className="flex items-center gap-2 flex-wrap">
         <span
           className={`${STATE_BADGE[order.state]} rounded-sm px-1.5 py-0.5 text-[11px] font-semibold text-white`}
         >
-          {STATE_LABEL[order.state]}
+          {pickedUp ? "Picked up" : STATE_LABEL[order.state]}
         </span>
-        {order.urgency === "stat" && (
+        {order.urgency === "stat" && !done && (
           <span className="rounded-sm bg-navy px-1.5 py-0.5 text-[11px] font-bold tracking-wide text-white">
             STAT
           </span>
         )}
-        <span
-          className={`ml-auto text-xs font-medium tabular-nums ${
-            deadline.overdue ? "text-critical" : "text-ink-soft"
-          }`}
-        >
-          {deadline.text}
-        </span>
+        {done && <ConditionChip order={order} />}
+        {!done && (
+          <span
+            className={`ml-auto text-xs font-medium tabular-nums ${
+              clock.overdue ? "text-critical" : "text-ink-soft"
+            }`}
+          >
+            {clockIso ? `pickup: ${clock.text}` : clock.text}
+          </span>
+        )}
       </div>
 
       <div className="mt-2 text-sm font-semibold text-ink">{order.patientLabel}</div>
@@ -183,17 +279,20 @@ function OrderCard({ order, children }: { order: Order; children?: React.ReactNo
         ))}
       </ul>
 
-      {order.note && (
+      {order.note && !done && (
         <div className="mt-2 rounded-md bg-cream px-2.5 py-1.5 text-xs text-ink-soft">
           {order.note}
         </div>
       )}
 
-      {order.etaAt && (
+      {order.etaAt && !done && order.state !== "delivered" && (
         <div className="mt-2 text-xs text-ink-soft">
           ETA:{" "}
           <span className="font-medium text-ink">
-            {new Date(order.etaAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+            {new Date(order.etaAt).toLocaleTimeString([], {
+              hour: "numeric",
+              minute: "2-digit",
+            })}
           </span>
         </div>
       )}
