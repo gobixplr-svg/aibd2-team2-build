@@ -48,6 +48,11 @@ export interface Pickup {
   dueAt: string; // ISO — triggeredAt + 24h (deep dive: hospice pays until retrieval)
   completedAt?: string;
   condition?: ConditionCheck; // condition-on-return
+  // Set by the vendor. Silence on either is an early signal in its own
+  // right — the ladder fires on the ABSENCE of these, not on lateness.
+  acknowledgedAt?: string; // dispatcher saw it
+  windowStart?: string; // committed 2-hour retrieval window
+  windowEnd?: string;
 }
 
 export interface Order {
@@ -135,6 +140,13 @@ export interface RiskFeatures {
   vendorOnTimeRate: number; // 0–1, this vendor, all orders
   vendorStatOnTimeRate: number; // 0–1, this vendor, STAT only — where v2 finds the story
   vendorConnected: boolean; // gates in-app escalation vs phone script
+  // Pickup prediction. avgPickupHours is this vendor's measured history;
+  // predictedBreachHours is how far past the SLA that history puts them.
+  // Positive at T+0 means we know it will be late before it is late.
+  vendorAvgPickupHours: number;
+  pickupPredictedBreachHours: number;
+  pickupAcknowledged: boolean;
+  pickupWindowCommitted: boolean;
   urgency: Urgency;
   itemCount: number;
   isOxygen: boolean; // E1390/E0431 — safety-relevant, not just late
@@ -149,7 +161,16 @@ export type ReasonCode =
   | "dispatch_silence"
   | "pickup_overdue_24h"
   | "vendor_stat_degrading"
-  | "unconnected_vendor_no_ack";
+  | "unconnected_vendor_no_ack"
+  // ── the pickup ladder ──
+  // Firing only at 24h reports a breach; it doesn't prevent one. These
+  // rungs fire earlier and mostly silently, so the nurse hears about a
+  // pickup only when it actually needs her.
+  | "pickup_predicted_breach" // T+0, from vendor history — before anything is late
+  | "pickup_no_ack" // T+2h  — vendor hasn't acknowledged
+  | "pickup_no_window" // T+6h  — no 2-hour window committed
+  | "pickup_needs_backup" // T+12h — propose reassignment
+  | "pickup_family_notice"; // T+18h — predicted breach, draft the message
 
 export interface ScreenResult {
   order: Order;
@@ -184,6 +205,10 @@ export interface InboxItem {
   resolvedAt?: string;
   resolvedBy?: string;
   source: "hermes" | "don_approval" | "family_message";
+  // True when Hermes handled it without anyone needing to know. The
+  // measure of a good night shift is an empty inbox in the morning —
+  // so the board should collapse these, not list them.
+  silent?: boolean;
   draft?: string; // Claude-drafted family message, awaiting human send
 }
 
@@ -199,6 +224,12 @@ export interface Policy {
   dispatchSilenceMin: number; // no movement this long = silence flag
   vendorStatRateFloor: number; // below this STAT on-time rate = degrading
   useAiTriage: boolean; // the rules-only toggle, flipped live on stage
+  // Pickup escalation ladder, in hours since the nurse triggered it.
+  // Four of the rungs resolve without anyone being told.
+  pickupAckHours: number; // no dispatcher acknowledgment
+  pickupWindowHours: number; // no committed retrieval window
+  pickupBackupHours: number; // propose reassignment
+  pickupFamilyHours: number; // draft the family message
 }
 
 export const DEFAULT_POLICY: Policy = {
@@ -209,6 +240,10 @@ export const DEFAULT_POLICY: Policy = {
   dispatchSilenceMin: 90,
   vendorStatRateFloor: 0.85,
   useAiTriage: true,
+  pickupAckHours: 2,
+  pickupWindowHours: 6,
+  pickupBackupHours: 12,
+  pickupFamilyHours: 18,
 };
 
 // ── The clock ────────────────────────────────────────────────
