@@ -220,7 +220,15 @@ export function HospicePortal() {
             onRecordPassing={(patientId) => setDeceasedFor(patientId)}
           />
         )}
-        {tab === "emr" && <EmrTab patients={patients} log={emrLog} onFire={fireEmrEvent} />}
+        {tab === "emr" && (
+          <EmrTab
+            patients={patients}
+            orders={orders}
+            vendorName={vendorName}
+            log={emrLog}
+            onFire={fireEmrEvent}
+          />
+        )}
         {tab === "family" && <FamilyViewTab patients={patients} />}
       </div>
 

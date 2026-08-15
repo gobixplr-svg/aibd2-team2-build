@@ -141,7 +141,10 @@ export function PatientList({
         const currentDailyRate = patientOrders
           .filter((o) => o.timestamps.delivered && !o.pickup?.completedAt)
           .reduce((s, o) => s + orderDailyRate(o), 0);
-        const idleCostForPatient = postPickupIdleCost(patientOrders, now);
+        // "Accruing" is present tense — only orders still awaiting pickup
+        // count, not ones where a late pickup already happened and closed.
+        const openIdleOrders = patientOrders.filter((o) => o.pickup && !o.pickup.completedAt);
+        const idleCostForPatient = postPickupIdleCost(openIdleOrders, now);
         const vsAvgPct = avgSpend > 0 ? Math.round(((spend - avgSpend) / avgSpend) * 100) : 0;
         const risk = patientRisk(patientOrders);
 
@@ -241,7 +244,7 @@ export function PatientList({
                       </div>
                     )}
 
-                    {patientOrders
+                    {openIdleOrders
                       .filter((o) => idlePickupDays(o, now) > 0)
                       .map((o) => {
                         const overdueDays = idlePickupDays(o, now);
