@@ -43,10 +43,24 @@ interface WorldState {
 
 // Engine inbox → portal display shape (derive.ts calls itself the
 // stand-in for exactly this adapter).
-function toPortalInbox(items: EngineInboxItem[], patients: Patient[]): InboxItem[] {
+function toPortalInbox(
+  items: EngineInboxItem[],
+  patients: Patient[],
+  orders: Order[],
+): InboxItem[] {
   const label = (id?: string) => patients.find((p) => p.id === id)?.label;
+  // A pending approval is only worth a nurse's attention while the order
+  // it targets can still be acted on. Once the pickup is completed — or
+  // the item points at an order that isn't on the live board at all
+  // (historical ord-h seeds) — approving it would execute against a
+  // closed order, so the moment has passed: suppress it.
+  const stale = (i: EngineInboxItem) => {
+    if (i.status !== "pending" || !i.orderId) return false;
+    const order = orders.find((o) => o.id === i.orderId);
+    return !order || Boolean(order.pickup?.completedAt);
+  };
   return items
-    .filter((i) => !i.silent)
+    .filter((i) => !i.silent && !stale(i))
     .map((i) => ({
       id: i.id,
       kind:
@@ -89,7 +103,7 @@ export function HospicePortal() {
 
   const { orders, patients, vendors, onHand } = state;
   const now = new Date(state.now).getTime();
-  const inbox = toPortalInbox(state.inbox, patients);
+  const inbox = toPortalInbox(state.inbox, patients, orders);
   const vendorName = (id: string) => vendors.find((v) => v.id === id)?.name ?? id;
 
   async function placeOrder(order: Order) {
