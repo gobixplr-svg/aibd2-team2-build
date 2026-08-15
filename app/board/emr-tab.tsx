@@ -151,9 +151,9 @@ export function EmrTab({
                             "Routine"
                           )}
                         </td>
-                        <td className="px-3 py-2.5">
+                        <td className="whitespace-nowrap px-3 py-2.5">
                           <span
-                            className="rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide"
+                            className="inline-block whitespace-nowrap rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide"
                             style={TONE[status.tone]}
                           >
                             {status.label}
