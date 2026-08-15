@@ -119,13 +119,16 @@ export function OnHandList({
         />
       </div>
 
-      <div className="grid grid-cols-[14px_1.3fr_.9fr_1fr_.9fr_.6fr_18px] gap-2.5 border-b border-line pb-2 text-[9px] uppercase tracking-wide text-muted">
+      <div className="grid grid-cols-[14px_1fr_18px] gap-2.5 border-b border-line pb-2 text-[9px] uppercase tracking-wide text-muted sm:grid-cols-[14px_1.3fr_.9fr_1fr_.9fr_.6fr_18px]">
         <div />
-        <div>Item</div>
-        <div>Vendor</div>
-        <div>State</div>
-        <div>Patient</div>
-        <div>Days in state</div>
+        <div>
+          <span className="sm:hidden">Item · state</span>
+          <span className="hidden sm:inline">Item</span>
+        </div>
+        <div className="hidden sm:block">Vendor</div>
+        <div className="hidden sm:block">State</div>
+        <div className="hidden sm:block">Patient</div>
+        <div className="hidden sm:block">Days in state</div>
         <div />
       </div>
 
@@ -146,25 +149,38 @@ export function OnHandList({
                   setExpanded(isOpen ? null : a.id);
                 }
               }}
-              className="grid w-full cursor-pointer grid-cols-[14px_1.3fr_.9fr_1fr_.9fr_.6fr_18px] items-center gap-2.5 border-b border-line py-3 text-left text-[11px] text-ink"
+              className="grid w-full cursor-pointer grid-cols-[14px_1fr_18px] items-center gap-2.5 border-b border-line py-3 text-left text-[11px] text-ink sm:grid-cols-[14px_1.3fr_.9fr_1fr_.9fr_.6fr_18px]"
             >
               <span className={`h-8 w-[5px] rounded-sm ${RAIL_CLASS[a.state]}`} />
               <span>
                 <span className="block font-medium">{EQUIPMENT[a.hcpcs]?.name ?? a.hcpcs}</span>
-                <span className="block font-mono text-[9px] text-muted">
+                <span className="hidden font-mono text-[9px] text-muted sm:block">
                   {a.hcpcs} · {a.id}
                 </span>
+                {/* Vendor/Patient/Days-in-state drop below sm — state pill rides
+                    with the code+id line instead, so lifecycle still reads
+                    without a tap. All three reappear in the Detail block below. */}
+                <span className="mt-1 flex items-center gap-1.5 sm:hidden">
+                  <span
+                    className={`whitespace-nowrap rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${STATE_CLASS[a.state]}`}
+                  >
+                    {STATE_LABEL[a.state]}
+                  </span>
+                  <span className="whitespace-nowrap font-mono text-[9.5px] text-ink-soft">
+                    {a.hcpcs} · {a.id}
+                  </span>
+                </span>
               </span>
-              <span className="text-[10px] text-ink-soft">{vendorName(a.vendorId)}</span>
-              <span>
+              <span className="hidden text-[10px] text-ink-soft sm:block">{vendorName(a.vendorId)}</span>
+              <span className="hidden sm:block">
                 <span
                   className={`rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${STATE_CLASS[a.state]}`}
                 >
                   {STATE_LABEL[a.state]}
                 </span>
               </span>
-              <span className="text-[10px] text-ink-soft">{patient?.label ?? "—"}</span>
-              <span className="text-[10px]">{daysInState(a.updatedAt, now)}d</span>
+              <span className="hidden text-[10px] text-ink-soft sm:block">{patient?.label ?? "—"}</span>
+              <span className="hidden text-[10px] sm:block">{daysInState(a.updatedAt, now)}d</span>
               <span className="text-right text-muted">{isOpen ? "⌄" : "›"}</span>
             </div>
 
@@ -173,22 +189,49 @@ export function OnHandList({
                 className="mb-2.5 rounded-xl border border-line bg-page p-4 shadow-sm"
                 onClick={(e) => e.stopPropagation()}
               >
+                {/* Detail block: Vendor/Patient/Days-in-state live here at every
+                    width, not just below sm — a detail view whose facts change
+                    by breakpoint is a bug waiting to happen. */}
+                <div className="mb-2 text-[9px] uppercase tracking-wide text-muted">Detail</div>
+                <div className="mb-3.5 rounded-md border border-line bg-surface p-3 text-[11px] leading-loose text-ink">
+                  <div className="flex">
+                    <span className="min-w-[96px] text-ink-soft">Vendor</span>
+                    <span>{vendorName(a.vendorId)}</span>
+                  </div>
+                  <div className="flex">
+                    <span className="min-w-[96px] text-ink-soft">Patient</span>
+                    <span>{patient?.label ?? "—"}</span>
+                  </div>
+                  <div className="flex">
+                    <span className="min-w-[96px] text-ink-soft">Days in state</span>
+                    <span>{daysInState(a.updatedAt, now)}d</span>
+                  </div>
+                </div>
+
                 <div className="mb-2 text-[9px] uppercase tracking-wide text-muted">
                   Lifecycle · vendor retains title throughout
                 </div>
-                <div className="mb-3 text-[11px] leading-relaxed text-ink">
-                  at-warehouse → in-transit → on-hand → deployed → pending-pickup →
-                  in-transit-return → maintenance → at-warehouse
+                <div className="mb-3.5 flex flex-wrap gap-1.5">
+                  {(Object.keys(STATE_LABEL) as OnHandState[]).map((s) => (
+                    <span
+                      key={s}
+                      className={`rounded px-1.5 py-1 text-[9px] font-semibold uppercase tracking-wide ${
+                        s === a.state ? "bg-navy text-white" : "bg-line text-ink-soft"
+                      }`}
+                    >
+                      {STATE_LABEL[s]}
+                    </span>
+                  ))}
                 </div>
 
                 {next === "deployed" ? (
-                  <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex flex-col gap-2">
                     <select
                       value={deployPatient[a.id] ?? ""}
                       onChange={(e) =>
                         setDeployPatient((d) => ({ ...d, [a.id]: e.target.value }))
                       }
-                      className="rounded-md border border-line-strong bg-surface px-2.5 py-2 text-[11px] text-ink"
+                      className="rounded-md border border-line-strong bg-surface px-2.5 py-2.5 text-[11px] text-ink"
                     >
                       <option value="">Choose patient…</option>
                       {activePatients.map((p) => (
@@ -203,7 +246,7 @@ export function OnHandList({
                         if (pid) onAdvance(a.id, pid);
                       }}
                       disabled={!deployPatient[a.id]}
-                      className="rounded-md bg-brand px-3.5 py-2 text-[11px] font-semibold text-white disabled:opacity-40"
+                      className="rounded-md bg-brand px-3.5 py-2.5 text-[11px] font-semibold text-white disabled:opacity-40"
                     >
                       Deploy to patient
                     </button>
@@ -211,7 +254,7 @@ export function OnHandList({
                 ) : (
                   <button
                     onClick={() => onAdvance(a.id)}
-                    className="rounded-md bg-brand px-3.5 py-2 text-[11px] font-semibold text-white"
+                    className="rounded-md bg-brand px-3.5 py-2.5 text-[11px] font-semibold text-white"
                   >
                     Advance to {STATE_LABEL[next]}
                   </button>

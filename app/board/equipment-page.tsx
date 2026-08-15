@@ -76,12 +76,12 @@ export function EquipmentPage({
   return (
     <div className="p-5 bg-cream">
       <div className="rounded-2xl border border-line bg-surface overflow-hidden">
-        <div className="flex items-end gap-3 border-b border-line px-5 pt-4">
+        <div className="flex flex-wrap items-end gap-3 border-b border-line px-5 pt-4">
           <div>
             <div className="text-[17px] font-semibold text-ink">Equipment</div>
             <div className="mt-0.5 mb-3 text-[11px] text-ink-soft">{subtitle}</div>
           </div>
-          <div className="ml-auto flex gap-1">
+          <div className="ml-auto hidden gap-1 sm:flex">
             {SUB_TABS.map((t) => (
               <button
                 key={t.key}
@@ -97,6 +97,19 @@ export function EquipmentPage({
               </button>
             ))}
           </div>
+          {/* Same reasoning as board.tsx's top nav: below sm a select beats a
+              button row that would otherwise overflow the card. */}
+          <select
+            value={subTab}
+            onChange={(e) => setSubTab(e.target.value as SubTabKey)}
+            className="mb-3 w-full rounded-md border border-line-strong bg-page px-3 py-2 text-xs text-ink sm:hidden"
+          >
+            {SUB_TABS.map((t) => (
+              <option key={t.key} value={t.key}>
+                {t.label}
+              </option>
+            ))}
+          </select>
         </div>
 
         {subTab === "list" && (

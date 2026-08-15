@@ -109,13 +109,16 @@ export function EquipmentList({
         )}
       </div>
 
-      <div className="grid grid-cols-[14px_1.05fr_.7fr_.95fr_.85fr_.85fr_18px] gap-2.5 border-b border-line pb-2 text-[9px] uppercase tracking-wide text-muted">
+      <div className="grid grid-cols-[14px_1fr_18px] gap-2.5 border-b border-line pb-2 text-[9px] uppercase tracking-wide text-muted sm:grid-cols-[14px_1.05fr_.7fr_.95fr_.85fr_.85fr_18px]">
         <div />
-        <div>Patient</div>
-        <div>Code</div>
-        <div>Status</div>
-        <div>Vendor</div>
-        <div>Deadline</div>
+        <div>
+          <span className="sm:hidden">Patient · status</span>
+          <span className="hidden sm:inline">Patient</span>
+        </div>
+        <div className="hidden sm:block">Code</div>
+        <div className="hidden sm:block">Status</div>
+        <div className="hidden sm:block">Vendor</div>
+        <div className="hidden sm:block">Deadline</div>
         <div />
       </div>
 
@@ -125,28 +128,42 @@ export function EquipmentList({
           <Pulse key={o.id} watch={`${o.state}:${o.risk?.score ?? ""}:${o.etaAt ?? ""}`}>
             <button
               onClick={() => setExpanded(isOpen ? null : o.id)}
-              className="grid w-full grid-cols-[14px_1.05fr_.7fr_.95fr_.85fr_.85fr_18px] items-center gap-2.5 border-b border-line py-3 text-left text-[11px] text-ink"
+              className="grid w-full grid-cols-[14px_1fr_18px] items-center gap-2.5 border-b border-line py-3 text-left text-[11px] text-ink sm:grid-cols-[14px_1.05fr_.7fr_.95fr_.85fr_.85fr_18px]"
             >
               <span className={`h-8 w-[5px] rounded-sm ${railFor(o)}`} />
               <span>
                 <span className="block font-medium">{o.patientLabel}</span>
-                <span className="block font-mono text-[9px] text-muted">
+                <span className="hidden font-mono text-[9px] text-muted sm:block">
                   {o.items[0]?.assetId ?? o.id}
                 </span>
+                {/* Code + status + deadline collapse into this line below sm — the
+                    dedicated columns disappear, but urgency still reads without a tap. */}
+                <span className="mt-1 flex items-center gap-1.5 sm:hidden">
+                  <span
+                    className={`whitespace-nowrap rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${pillFor(o).className}`}
+                  >
+                    {pillFor(o).label}
+                  </span>
+                  <span className="whitespace-nowrap font-mono text-[9.5px] text-ink-soft">
+                    {o.items[0]?.hcpcs}
+                    {o.items.length > 1 ? ` +${o.items.length - 1}` : ""} · due{" "}
+                    {deadlineLabel(effectiveDeadline(o))}
+                  </span>
+                </span>
               </span>
-              <span className="font-mono text-[10px]">
+              <span className="hidden font-mono text-[10px] sm:block">
                 {o.items[0]?.hcpcs}
                 {o.items.length > 1 ? ` +${o.items.length - 1}` : ""}
               </span>
-              <span>
+              <span className="hidden sm:block">
                 <span
                   className={`rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${pillFor(o).className}`}
                 >
                   {pillFor(o).label}
                 </span>
               </span>
-              <span className="text-[10px] text-ink-soft">{vendorName(o.vendorId)}</span>
-              <span className="text-[10px]">{deadlineLabel(effectiveDeadline(o))}</span>
+              <span className="hidden text-[10px] text-ink-soft sm:block">{vendorName(o.vendorId)}</span>
+              <span className="hidden text-[10px] sm:block">{deadlineLabel(effectiveDeadline(o))}</span>
               <span className="text-right text-muted">{isOpen ? "⌄" : "›"}</span>
             </button>
 
@@ -250,17 +267,29 @@ export function EquipmentList({
                           onDismiss={onDismissDraft}
                         />
                       ))}
-                    <div className="mt-3 flex flex-wrap justify-end gap-1.5">
+                    <div className="mt-3 flex flex-wrap gap-2 sm:justify-end sm:gap-1.5">
+                      {/* Primary action goes full-width and first on a phone —
+                          a tap target min-h-[44px] rather than relying on
+                          padding, and pinned above the secondaries instead of
+                          buried at the end of a wrapped row. */}
+                      {orderNeedsAttention(o) && (
+                        <button
+                          onClick={() => onRequestReroute(o.id)}
+                          className="order-first min-h-[44px] w-full rounded-md bg-brand px-3.5 py-2 text-[11px] font-semibold text-white sm:order-none sm:w-auto sm:min-h-0"
+                        >
+                          Request reroute
+                        </button>
+                      )}
                       <button
                         onClick={() => onAddNote(o.id)}
-                        className="rounded-md border border-line-strong bg-surface px-3 py-2 text-[11px] text-ink-soft"
+                        className="min-h-[44px] flex-1 rounded-md border border-line-strong bg-surface px-3 py-2 text-[11px] text-ink-soft sm:min-h-0 sm:flex-none"
                       >
                         Add note
                       </button>
                       <button
                         onClick={() => handleMessageFamily(o.id, o.patientId)}
                         disabled={familyStatus[o.id] === "sending"}
-                        className="rounded-md border border-line-strong bg-surface px-3 py-2 text-[11px] text-ink-soft disabled:opacity-60"
+                        className="min-h-[44px] flex-1 rounded-md border border-line-strong bg-surface px-3 py-2 text-[11px] text-ink-soft disabled:opacity-60 sm:min-h-0 sm:flex-none"
                       >
                         Message family
                       </button>
@@ -276,14 +305,6 @@ export function EquipmentList({
                         <span className="self-center text-[10px] text-critical">
                           Couldn&apos;t send — try again
                         </span>
-                      )}
-                      {orderNeedsAttention(o) && (
-                        <button
-                          onClick={() => onRequestReroute(o.id)}
-                          className="rounded-md bg-brand px-3.5 py-2 text-[11px] font-semibold text-white"
-                        >
-                          Request reroute
-                        </button>
                       )}
                     </div>
                   </div>

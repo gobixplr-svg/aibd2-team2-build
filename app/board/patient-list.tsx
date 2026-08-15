@@ -157,14 +157,17 @@ export function PatientList({
           New order
         </button>
       </div>
-      <div className="grid grid-cols-[14px_1.7fr_1.1fr_.8fr_.95fr_.6fr_54px_18px] gap-2.5 border-b border-line pb-2 text-[9px] uppercase tracking-wide text-muted">
+      <div className="grid grid-cols-[14px_1fr_18px] gap-2.5 border-b border-line pb-2 text-[9px] uppercase tracking-wide text-muted sm:grid-cols-[14px_1.7fr_1.1fr_.8fr_.95fr_.6fr_54px_18px]">
         <div />
-        <div>Patient</div>
-        <div>Needs attention</div>
-        <div>Assets</div>
-        <div>DME + Rx spend</div>
-        <div>Days</div>
-        <div>Family</div>
+        <div>
+          <span className="sm:hidden">Patient · spend · attention</span>
+          <span className="hidden sm:inline">Patient</span>
+        </div>
+        <div className="hidden sm:block">Needs attention</div>
+        <div className="hidden sm:block">Assets</div>
+        <div className="hidden sm:block">DME + Rx spend</div>
+        <div className="hidden sm:block">Days</div>
+        <div className="hidden sm:block">Family</div>
         <div />
       </div>
 
@@ -195,21 +198,39 @@ export function PatientList({
                   setExpanded(isOpen ? null : p.id);
                 }
               }}
-              className="grid w-full cursor-pointer grid-cols-[14px_1.7fr_1.1fr_.8fr_.95fr_.6fr_54px_18px] items-center gap-2.5 border-b border-line py-3.5 text-left text-xs text-ink"
+              className="grid w-full cursor-pointer grid-cols-[14px_1fr_18px] items-center gap-2.5 border-b border-line py-3.5 text-left text-xs text-ink sm:grid-cols-[14px_1.7fr_1.1fr_.8fr_.95fr_.6fr_54px_18px]"
             >
               <span
                 className={`h-[30px] w-[5px] rounded-sm ${isOpen ? "bg-secondary" : "bg-line"}`}
               />
-              <span className="flex items-baseline gap-2">
-                <span className="font-medium">{p.label}</span>
-                {p.dx && (
-                  <span className="rounded border border-line px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-ink-soft">
-                    {p.dx}
-                  </span>
-                )}
-                <span className="text-[10px] text-muted">{p.id}</span>
-              </span>
               <span>
+                <span className="flex items-baseline gap-2">
+                  <span className="font-medium">{p.label}</span>
+                  {p.dx && (
+                    <span className="rounded border border-line px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-ink-soft">
+                      {p.dx}
+                    </span>
+                  )}
+                  <span className="hidden text-[10px] text-muted sm:inline">{p.id}</span>
+                </span>
+                {/* Assets/Days/Family drop below sm — cost-of-care is the selling
+                    point, so spend (with its vs-average delta) earns this line
+                    instead; the risk pill rides along when there is one. */}
+                <span className="mt-1 flex flex-wrap items-center gap-1.5 sm:hidden">
+                  <span className="whitespace-nowrap text-[9.5px] text-ink-soft">
+                    ${spend.toLocaleString()} DME
+                    {avgSpend > 0 && ` · ${vsAvgPct >= 0 ? "+" : ""}${vsAvgPct}% vs avg`}
+                  </span>
+                  {risk && (
+                    <span
+                      className={`whitespace-nowrap rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${risk.className}`}
+                    >
+                      {risk.label}
+                    </span>
+                  )}
+                </span>
+              </span>
+              <span className="hidden sm:block">
                 {risk && (
                   <span
                     className={`rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${risk.className}`}
@@ -218,8 +239,8 @@ export function PatientList({
                   </span>
                 )}
               </span>
-              <span className="text-[11px]">{openDmeLabel(patientOrders)}</span>
-              <span className="text-[11px]">
+              <span className="hidden text-[11px] sm:block">{openDmeLabel(patientOrders)}</span>
+              <span className="hidden text-[11px] sm:block">
                 <span>
                   ${spend.toLocaleString()} DME
                   {avgSpend > 0 && (
@@ -235,8 +256,8 @@ export function PatientList({
                   </span>
                 )}
               </span>
-              <span className="text-[11px]">{Math.round(days)}</span>
-              <span className="text-[10px] text-ink-soft">
+              <span className="hidden text-[11px] sm:block">{Math.round(days)}</span>
+              <span className="hidden text-[10px] text-ink-soft sm:block">
                 {p.familyToken ? (
                   <Link
                     href={`/f/${p.familyToken}`}
@@ -375,12 +396,15 @@ export function PatientList({
                       )}
                     </div>
 
-                    <div className="mt-3.5 flex flex-wrap justify-end gap-1.5">
+                    <div className="mt-3.5 flex flex-wrap gap-2 sm:justify-end sm:gap-1.5">
+                      {/* Paired 2-up rows on a phone, min-h-[44px] tap targets.
+                          Record passing keeps its red outline and stays last —
+                          away from the thumb's resting path, same as desktop. */}
                       {p.familyToken && (
                         <Link
                           href={`/f/${p.familyToken}`}
                           target="_blank"
-                          className="rounded-md border border-line-strong bg-surface px-3 py-2 text-[11px] text-ink-soft"
+                          className="flex min-h-[44px] flex-1 basis-[45%] items-center justify-center rounded-md border border-line-strong bg-surface px-3 py-2 text-[11px] text-ink-soft sm:min-h-0 sm:flex-none sm:basis-auto"
                         >
                           Open family tracker
                         </Link>
@@ -388,7 +412,7 @@ export function PatientList({
                       <button
                         onClick={() => handleMessageFamily(p.id)}
                         disabled={familyStatus[p.id] === "sending"}
-                        className="rounded-md border border-line-strong bg-surface px-3 py-2 text-[11px] text-ink-soft disabled:opacity-60"
+                        className="min-h-[44px] flex-1 basis-[45%] rounded-md border border-line-strong bg-surface px-3 py-2 text-[11px] text-ink-soft disabled:opacity-60 sm:min-h-0 sm:flex-none sm:basis-auto"
                       >
                         Message family
                       </button>
@@ -417,20 +441,20 @@ export function PatientList({
                           const target = patientOrders[0];
                           if (target) onAddNote(target.id);
                         }}
-                        className="rounded-md border border-line-strong bg-surface px-3 py-2 text-[11px] text-ink-soft"
+                        className="min-h-[44px] flex-1 basis-[45%] rounded-md border border-line-strong bg-surface px-3 py-2 text-[11px] text-ink-soft sm:min-h-0 sm:flex-none sm:basis-auto"
                       >
                         Add note
                       </button>
                       <button
                         onClick={() => onNewOrder(p.id)}
-                        className="rounded-md border border-line-strong bg-surface px-3 py-2 text-[11px] text-ink-soft"
+                        className="min-h-[44px] flex-1 basis-[45%] rounded-md border border-line-strong bg-surface px-3 py-2 text-[11px] text-ink-soft sm:min-h-0 sm:flex-none sm:basis-auto"
                       >
                         New order
                       </button>
                       {p.status === "active" && (
                         <button
                           onClick={() => onRecordPassing(p.id)}
-                          className="rounded-md border-[1.5px] border-critical bg-surface px-3 py-2 text-[11px] font-medium text-critical"
+                          className="min-h-[44px] flex-1 basis-[45%] rounded-md border-[1.5px] border-critical bg-surface px-3 py-2 text-[11px] font-medium text-critical sm:min-h-0 sm:flex-none sm:basis-auto"
                         >
                           Record passing
                         </button>
