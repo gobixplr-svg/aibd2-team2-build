@@ -11,6 +11,7 @@ import {
   openDmeLabel,
   orderDailyRate,
   PILL_CLASS,
+  pillFor,
   postPickupIdleCost,
   STATE_LABEL,
   type InboxItem,
@@ -249,7 +250,14 @@ export function PatientList({
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   <div>
                     <div className="mb-2 text-[9px] uppercase tracking-wide text-muted">
-                      Assets on site
+                      {/* Only delivered-and-not-picked-up items are IN the
+                          home — calling an ordered item "on site" put this
+                          panel out of sync with the vendor and family views. */}
+                      Equipment ·{" "}
+                      {patientOrders
+                        .filter((o) => o.timestamps.delivered && !o.pickup?.completedAt)
+                        .reduce((s, o) => s + o.items.length, 0)}{" "}
+                      of {patientOrders.reduce((s, o) => s + o.items.length, 0)} in the home
                     </div>
                     {patientOrders.length === 0 ? (
                       <div className="text-[11px] text-muted">No orders on file.</div>
@@ -268,9 +276,9 @@ export function PatientList({
                                   {Math.round(daysOnRent(o))} d · ${Math.round(orderDailyRate(o) * 30)}/mo
                                 </span>
                                 <span
-                                  className={`rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${PILL_CLASS[o.state]}`}
+                                  className={`rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${pillFor(o).className}`}
                                 >
-                                  {o.state === "pickup_triggered" ? "Pickup triggered" : o.state.replace(/_/g, " ")}
+                                  {pillFor(o).label}
                                 </span>
                               </div>
                             ))}

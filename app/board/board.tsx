@@ -43,7 +43,8 @@ interface WorldState {
 
 // Engine inbox → portal display shape (derive.ts calls itself the
 // stand-in for exactly this adapter).
-function toPortalInbox(items: EngineInboxItem[]): InboxItem[] {
+function toPortalInbox(items: EngineInboxItem[], patients: Patient[]): InboxItem[] {
+  const label = (id?: string) => patients.find((p) => p.id === id)?.label;
   return items
     .filter((i) => !i.silent)
     .map((i) => ({
@@ -60,6 +61,7 @@ function toPortalInbox(items: EngineInboxItem[]): InboxItem[] {
       detail: i.reasons.length ? `${i.detail} — ${i.reasons.join("; ")}` : i.detail,
       draft: i.draft,
       patientId: i.patientId,
+      context: [label(i.patientId), i.orderId].filter(Boolean).join(" · ") || undefined,
       needsApproval: i.status === "pending",
       resolved:
         i.status === "approved" || i.status === "auto_executed"
@@ -86,7 +88,7 @@ export function HospicePortal() {
 
   const { orders, patients, vendors, onHand } = state;
   const now = new Date(state.now).getTime();
-  const inbox = toPortalInbox(state.inbox);
+  const inbox = toPortalInbox(state.inbox, patients);
   const vendorName = (id: string) => vendors.find((v) => v.id === id)?.name ?? id;
 
   async function placeOrder(order: Order) {

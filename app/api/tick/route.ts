@@ -52,10 +52,13 @@ async function enrichFamilyDrafts(): Promise<number> {
           ? "pickup_heads_up"
           : order.pickup
             ? "pickup_update"
-            : "general_update",
+            : ["ordered", "dispatched", "in_transit", "at_risk"].includes(order.state)
+              ? "delivery_update"
+              : "general_update",
       equipment: order.items.map((i) => i.name),
       windowStart: order.pickup?.windowStart ?? null,
       windowEnd: order.pickup?.windowEnd ?? null,
+      etaAt: order.pickup ? null : (order.etaAt ?? null),
       orderId: order.id,
     });
     await putInboxItem({ ...item, draft: result.text });

@@ -10,7 +10,7 @@ interface FamilyOrder {
   items: string[];
   targetAt: string;
   etaAt?: string;
-  pickup?: { dueAt: string; windowStart?: string; windowEnd?: string };
+  pickup?: { dueAt: string; windowStart?: string; windowEnd?: string; completedAt?: string };
 }
 
 interface CareMessage {
@@ -117,8 +117,26 @@ function friendlyLine(o: FamilyOrder, deceased: boolean): { headline: string; bo
   const t = (iso: string, opts: Intl.DateTimeFormatOptions) =>
     new Date(iso).toLocaleString([], opts);
 
+  // Completion lives on the pickup record, not order.state — check it
+  // first or the family reads "scheduled" forever after the truck left.
+  if (o.pickup?.completedAt) {
+    return {
+      headline: `The ${items} has been picked up`,
+      body: deceased
+        ? "Everything is taken care of — there is nothing more you need to do. Thank you for letting us care for your family."
+        : "All done — there's nothing more you need to do.",
+    };
+  }
+
   switch (o.state) {
+    // "Ordered" means the vendor hasn't accepted yet — nothing is moving,
+    // so don't tell the family it's on its way. The line flips (and
+    // pulses) the moment the dispatcher taps Accept.
     case "ordered":
+      return {
+        headline: `We're arranging your ${items}`,
+        body: "Your care team has placed the order. This page will update the moment it's on the way.",
+      };
     case "dispatched":
     case "in_transit":
     case "at_risk":

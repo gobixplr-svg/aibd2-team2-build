@@ -100,6 +100,9 @@ export async function GET(req: Request) {
                 // promise — the view renders it, so it has to travel.
                 windowStart: o.pickup.windowStart,
                 windowEnd: o.pickup.windowEnd,
+                // Completion lives here, not on order.state — without it
+                // the view says "scheduled" forever after the truck left.
+                completedAt: o.pickup.completedAt,
               }
             : undefined,
         })),

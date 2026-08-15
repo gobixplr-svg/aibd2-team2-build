@@ -144,18 +144,23 @@ export async function draftStatusNoteAI(
 
 export interface FamilyMessageInput {
   patientLabel: string;
-  kind: "pickup_update" | "pickup_heads_up" | "general_update";
+  kind: "delivery_update" | "pickup_update" | "pickup_heads_up" | "general_update";
   equipment: string[]; // display names in the home / on order
   // Only what we can honestly promise. null = no committed window, and
   // the model is told to say so rather than invent one.
   windowStart?: string | null;
   windowEnd?: string | null;
+  // Delivery ETA, delivery_update only. null = on order but no promise yet.
+  etaAt?: string | null;
   orderId?: string;
 }
 
 const FAMILY_SYSTEM = `You draft short messages from a hospice care team to a patient's family, inside Handoff (hospice DME coordination). A nurse or case manager ALWAYS reviews and edits before sending — write a strong first draft, not a final word.
 
-Context you must hold: if the message concerns equipment pickup, the patient has usually just died. The family is grieving, and the equipment in the home is a painful reminder.
+The "kind" field tells you which stage of care this message is about — the message MUST match it:
+- delivery_update: equipment is being arranged or on its way TO the home. The patient is alive and receiving care. Never mention pickup, retrieval, or loss. Mention an arrival estimate only if etaAt is provided; otherwise say the team is arranging it.
+- pickup_update / pickup_heads_up: equipment retrieval FROM the home, usually after the patient has died. The family is grieving, and the equipment in the home is a painful reminder.
+- general_update: the equipment is already set up in the home; a simple reassuring check-in.
 
 Rules:
 - 2 to 4 short sentences. Warm, plain, human. No corporate phrasing, no "we apologize for any inconvenience."
@@ -167,16 +172,23 @@ Rules:
 
 function familyTemplate(input: FamilyMessageInput): string {
   const eq = input.equipment.join(", ").toLowerCase() || "the equipment";
-  const windowLine =
-    input.windowStart && input.windowEnd
-      ? `Our partner team is scheduled between ${new Date(input.windowStart).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} and ${new Date(input.windowEnd).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}.`
-      : `We are arranging the retrieval now and will confirm a time with you as soon as it is set.`;
   switch (input.kind) {
+    case "delivery_update": {
+      const etaLine = input.etaAt
+        ? `It should arrive by about ${new Date(input.etaAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}.`
+        : `We're arranging the delivery now and will confirm a time with you as soon as it is set.`;
+      return `Your ${eq} is on the way. ${etaLine} The delivery team will set everything up and show you how it works.\n— your hospice care team`;
+    }
     case "pickup_update":
-    case "pickup_heads_up":
+    case "pickup_heads_up": {
+      const windowLine =
+        input.windowStart && input.windowEnd
+          ? `Our partner team is scheduled between ${new Date(input.windowStart).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} and ${new Date(input.windowEnd).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}.`
+          : `We are arranging the retrieval now and will confirm a time with you as soon as it is set.`;
       return `We wanted to reach out about ${eq} at the home. ${windowLine} Please don't hesitate to reach us with anything you need.\n— your hospice care team`;
+    }
     default:
-      return `A quick update from your care team about ${eq}. ${windowLine} We're here if you have any questions.\n— your hospice care team`;
+      return `A quick update from your care team: the ${eq} is set up in the home. We're here if you have any questions.\n— your hospice care team`;
   }
 }
 

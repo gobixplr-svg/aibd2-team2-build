@@ -6,11 +6,10 @@ import { Pulse } from "@/lib/pulse";
 import { categoryOf } from "@/lib/data/catalog";
 import { DraftCard } from "./draft-card";
 import {
-  PILL_CLASS,
   RAIL_CLASS,
-  STATE_LABEL,
   deadlineLabel,
   effectiveDeadline,
+  pillFor,
   type InboxItem,
 } from "./derive";
 
@@ -141,9 +140,9 @@ export function EquipmentList({
               </span>
               <span>
                 <span
-                  className={`rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${PILL_CLASS[o.state]}`}
+                  className={`rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${pillFor(o).className}`}
                 >
-                  {STATE_LABEL[o.state]}
+                  {pillFor(o).label}
                 </span>
               </span>
               <span className="text-[10px] text-ink-soft">{vendorName(o.vendorId)}</span>
