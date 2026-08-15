@@ -40,7 +40,7 @@ import { EQUIPMENT, isRespiratory } from "@/lib/data/catalog";
 import {
   appendEvent,
   getInbox,
-  getOrders,
+  getLiveOrders,
   getVendors,
   getWorld,
   appendLedger,
@@ -503,8 +503,11 @@ export async function tick(now: number): Promise<TickResult> {
   const world = await getWorld();
   const policy = world.policy;
 
+  // Live orders only — the engine must never scan ord-h seeds, and the
+  // filtered read keeps a tick from pulling the whole 1,100-row history
+  // out of Neon every 5 minutes.
   const [orders, vendors, inbox] = await Promise.all([
-    getOrders(),
+    getLiveOrders(),
     getVendors(),
     getInbox(),
   ]);

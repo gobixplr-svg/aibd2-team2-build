@@ -6,7 +6,7 @@
 //   { patientId, status: "admitted" | "discharged" | "deceased" }
 
 import { NextResponse } from "next/server";
-import { getOrders, getPatient, getWorld, putPatient, appendEvent } from "@/lib/data/db";
+import { getLiveOrders, getPatient, getWorld, putPatient, appendEvent } from "@/lib/data/db";
 import { applyTransition, patientStatusEvent, pickupPatch } from "@/lib/engine/transition";
 import { engineNow } from "@/lib/engine/clock";
 
@@ -34,7 +34,9 @@ export async function POST(req: Request) {
     let pickupsTriggered = 0;
     if (status === "deceased") {
       const world = await getWorld();
-      const orders = await getOrders();
+      // Live orders only — a death must never trigger pickups on ord-h
+      // historical seeds (p1-p15 all carry them now).
+      const orders = await getLiveOrders();
       for (const o of orders.filter(
         (o) => o.patientId === patientId && o.state === "delivered",
       )) {

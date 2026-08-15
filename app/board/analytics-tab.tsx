@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import type { Order, Patient, Vendor } from "@/lib/contracts";
 import { ALL_CATEGORIES, categoryOf } from "@/lib/data/catalog";
 import {
@@ -634,13 +634,11 @@ function LengthOfUseScatter({ rows }: { rows: LengthOfUseRow[] }) {
 // instead of each chart carrying its own scoped control.
 export function AnalyticsTab({
   orders,
-  history,
   patients,
   vendors,
   now,
 }: {
   orders: Order[];
-  history: Order[];
   patients: Patient[];
   vendors: Vendor[];
   now: number;
@@ -648,6 +646,23 @@ export function AnalyticsTab({
   const [vendorFilter, setVendorFilter] = useState<Set<string> | null>(null); // null = all
   const [category, setCategory] = useState<string>("All");
   const [monthsBack, setMonthsBack] = useState<number>(6);
+
+  // The year of ord-h history is immutable between resets, so it's
+  // fetched ONCE when this tab mounts instead of riding the 2-second
+  // board poll — that ride is what blew the Neon transfer quota.
+  const [history, setHistory] = useState<Order[]>([]);
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/state?scope=history", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((j) => {
+        if (alive && j.ok && Array.isArray(j.history)) setHistory(j.history);
+      })
+      .catch(() => {}); // charts render live-only until the fetch lands
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const activeVendorIds = useMemo(
     () => vendorFilter ?? new Set(vendors.map((v) => v.id)),

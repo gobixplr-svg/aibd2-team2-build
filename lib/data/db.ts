@@ -198,6 +198,29 @@ export const getOrder = (id: string) => one<Order>("orders", id);
 export const putOrder = (o: Order) => put("orders", o);
 export const putOrders = (o: Order[]) => putMany("orders", o);
 
+// ── Live vs history, filtered SQL-side ───────────────────────
+// The 1,100-row ord-h history is written once per reset and read only
+// by Analytics. Pulling it from Neon on every 2-second poll is what
+// exhausted the data-transfer quota on demo day — these accessors keep
+// the hot poll path on live rows and make history an explicit,
+// rarely-taken read.
+async function ordersById(kind: "live" | "history"): Promise<Order[]> {
+  if (!sql) {
+    const rows = [...memTable("orders").values()].map((r) => r.data as Order);
+    return rows.filter((o) =>
+      kind === "history" ? o.id.startsWith("ord-h") : !o.id.startsWith("ord-h"),
+    );
+  }
+  await ensureSchema();
+  const op = kind === "history" ? "like" : "not like";
+  const rows = (await sql.query(
+    `select data from orders where id ${op} 'ord-h%'`,
+  )) as { data: Order }[];
+  return rows.map((r) => r.data);
+}
+export const getLiveOrders = () => ordersById("live");
+export const getHistoryOrders = () => ordersById("history");
+
 export const getPatients = () => all<Patient>("patients");
 export const getPatient = (id: string) => one<Patient>("patients", id);
 export const putPatient = (p: Patient) => put("patients", p);

@@ -15,11 +15,12 @@
 import { NextResponse } from "next/server";
 import {
   getCalibration,
+  getHistoryOrders,
   getInbox,
   getLedger,
+  getLiveOrders,
   getMessages,
   getOnHandAssets,
-  getOrders,
   getPatients,
   getVendors,
   isPersistent,
@@ -29,6 +30,10 @@ import { postPickupIdleCost } from "@/app/board/derive";
 
 export const dynamic = "force-dynamic";
 
+// Every read below is scope-gated. This route is polled every 2 seconds
+// by every open surface, so each scope fetches ONLY the tables it
+// renders — pulling the whole world (incl. the 1,100-row ord-h history)
+// on every poll is what exhausted the Neon transfer quota on demo day.
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
@@ -36,20 +41,6 @@ export async function GET(req: Request) {
     const token = searchParams.get("token");
 
     const { now, world } = await engineNowWithWorld();
-    const [orders, vendors, patients, inbox, ledger, messages, onHand] = await Promise.all([
-      getOrders(),
-      getVendors(),
-      getPatients(),
-      getInbox(),
-      getLedger(200),
-      getMessages(),
-      getOnHandAssets(),
-    ]);
-
-    // Historical orders exist for vendor stats and Analytics, not for the
-    // live board/patient views — those two only ever see `orders` below.
-    const live = orders.filter((o) => !o.id.startsWith("ord-h"));
-    const history = orders.filter((o) => o.id.startsWith("ord-h"));
 
     const base = {
       ok: true,
@@ -60,7 +51,14 @@ export async function GET(req: Request) {
       persistent: isPersistent,
     };
 
+    // Analytics-only: the year of completed rental episodes. Fetched once
+    // when the Analytics sub-tab mounts, never on the recurring poll.
+    if (scope === "history") {
+      return NextResponse.json({ ...base, history: await getHistoryOrders() });
+    }
+
     if (scope === "vendor") {
+      const [vendors, live] = await Promise.all([getVendors(), getLiveOrders()]);
       const vendor = vendors.find((v) => v.token === token);
       if (!vendor) {
         return NextResponse.json(
@@ -76,6 +74,11 @@ export async function GET(req: Request) {
     }
 
     if (scope === "family") {
+      const [patients, live, inbox] = await Promise.all([
+        getPatients(),
+        getLiveOrders(),
+        getInbox(),
+      ]);
       const patient = patients.find((p) => p.familyToken === token);
       if (!patient) {
         return NextResponse.json(
@@ -126,6 +129,18 @@ export async function GET(req: Request) {
           .sort((a, b) => b.at.localeCompare(a.at)),
       });
     }
+
+    // ── hospice / all ─────────────────────────────────────────
+    const [live, vendors, patients, inbox, ledger, messages, onHand] =
+      await Promise.all([
+        getLiveOrders(),
+        getVendors(),
+        getPatients(),
+        getInbox(),
+        getLedger(200),
+        getMessages(),
+        getOnHandAssets(),
+      ]);
 
     // ── Money counter ────────────────────────────────────────
     // Every hour a rental sits in the home after death is a day the
@@ -187,11 +202,6 @@ export async function GET(req: Request) {
     const payload = {
       ...base,
       orders: live,
-      // Analytics-only: a year of completed rental episodes the live
-      // board never renders. Kept as a separate key rather than folded
-      // into `orders` so nothing that reads `orders` (Equipment list,
-      // By patient, needs-attention counts) has to filter it back out.
-      history,
       vendors,
       patients,
       onHand,

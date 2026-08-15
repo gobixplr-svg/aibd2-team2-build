@@ -37,10 +37,6 @@ type TabKey = (typeof TABS)[number]["key"];
 
 interface WorldState {
   orders: Order[];
-  // Analytics-only: a year of completed rental episodes, never rendered
-  // on the live board — see app/api/state/route.ts. Only AnalyticsTab
-  // reads this; everything else keeps using `orders`.
-  history: Order[];
   patients: Patient[];
   vendors: Vendor[];
   onHand: OnHandAsset[];
@@ -109,7 +105,7 @@ export function HospicePortal() {
   if (!state)
     return <div className="min-h-dvh bg-page" />;
 
-  const { orders, history, patients, vendors, onHand } = state;
+  const { orders, patients, vendors, onHand } = state;
   const now = new Date(state.now).getTime();
   const inbox = toPortalInbox(state.inbox, patients, orders);
   const vendorName = (id: string) => vendors.find((v) => v.id === id)?.name ?? id;
@@ -304,7 +300,6 @@ export function HospicePortal() {
         {tab === "equipment" && (
           <EquipmentPage
             orders={orders}
-            history={history}
             patients={patients}
             vendors={vendors}
             onHand={onHand}
