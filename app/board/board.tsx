@@ -18,6 +18,7 @@ import { EmrTab } from "./emr-tab";
 import { EquipmentPage } from "./equipment-page";
 import { FamilyViewTab } from "./family-view-tab";
 import { OrderFormModal } from "./order-form";
+import { TodayTab } from "./today-tab";
 
 // Wireframe turn 3: top chrome drops Patients in favor of Equipment
 // (now its own sub-tabbed page — Equipment / By patient / Analytics),
@@ -26,6 +27,7 @@ import { OrderFormModal } from "./order-form";
 // State layer (useWorld/postJson) is unchanged from the /api/state port.
 
 const TABS = [
+  { key: "today", label: "Today" },
   { key: "equipment", label: "Equipment" },
   { key: "emr", label: "EMR simulator" },
   { key: "family", label: "Family view" },
@@ -206,12 +208,18 @@ export function HospicePortal() {
     <div className="flex flex-col min-h-dvh w-full">
       <header className="bg-navy text-white border-t-[3px] border-brand">
         <div className="mx-auto flex w-full max-w-7xl items-center gap-6 px-4">
-          <div className="flex items-center gap-1.5 py-3.5">
+          {/* The logo is the way home: one click back to the RN's ranked
+              action list from anywhere. */}
+          <button
+            onClick={() => setTab("today")}
+            className="flex items-center gap-1.5 py-3.5"
+            title="Today — your action items"
+          >
             <span className="inline-block h-5 w-5 rounded-md bg-brand" />
             <span className="text-[15px] font-bold tracking-tight">
               Better<span className="text-brand">RX</span>
             </span>
-          </div>
+          </button>
           <nav className="flex gap-0.5 self-stretch text-xs">
             {TABS.map((t) => (
               <button
@@ -264,6 +272,17 @@ export function HospicePortal() {
       </header>
 
       <div className="mx-auto w-full max-w-7xl flex-1 bg-surface">
+        {tab === "today" && (
+          <TodayTab
+            orders={orders}
+            patients={patients}
+            inbox={inbox}
+            moneyAccruing={state.money.pickupOverdueUsd}
+            onApproveDraft={approveInbox}
+            onDismissDraft={dismissInbox}
+            onGoto={(t) => setTab(t)}
+          />
+        )}
         {tab === "equipment" && (
           <EquipmentPage
             orders={orders}
