@@ -5,9 +5,11 @@ import { Pulse } from "@/lib/pulse";
 import { DraftCard } from "./draft-card";
 import {
   deadlineLabel,
+  dmeMonthlyRunRate,
   effectiveDeadline,
   orderNeedsAttention,
   pillFor,
+  rxSpendMonthlyTotal,
   type InboxItem,
 } from "./derive";
 
@@ -45,7 +47,10 @@ export function TodayTab({
     pending.map((i) => i.context?.split(" · ")[1]).filter(Boolean),
   );
   const watches = attention.filter((o) => !proposalOrderIds.has(o.id));
-  const deceasedToday = patients.filter((p) => p.status === "deceased").length;
+  // "DME spend alongside medication spend, not in a separate silo"
+  // (bounty Required Features) — on the RN's home screen, not only in
+  // Analytics. Monthly run-rate + Rx monthly, same math as Analytics.
+  const costOfCareMonthly = Math.round(dmeMonthlyRunRate(orders) + rxSpendMonthlyTotal(patients));
 
   const empty = proposals.length === 0 && drafts.length === 0 && watches.length === 0;
 
@@ -73,7 +78,10 @@ export function TodayTab({
             value={`$${moneyAccruing.toFixed(2)}`}
             critical={moneyAccruing > 0}
           />
-          <StatTile label="Deceased on census" value={String(deceasedToday)} />
+          <StatTile
+            label="Cost of care (mo.) · DME + Rx"
+            value={`$${costOfCareMonthly.toLocaleString()}`}
+          />
         </div>
 
         {empty && (
