@@ -24,11 +24,9 @@ import {
   isPersistent,
 } from "@/lib/data/db";
 import { engineNowWithWorld } from "@/lib/engine/clock";
-import { dailyRateUsd } from "@/lib/data/catalog";
+import { postPickupIdleCost } from "@/app/board/derive";
 
 export const dynamic = "force-dynamic";
-
-const H = 3_600_000;
 
 export async function GET(req: Request) {
   try {
@@ -101,18 +99,11 @@ export async function GET(req: Request) {
     // ── Money counter ────────────────────────────────────────
     // Every hour a rental sits in the home after death is a day the
     // hospice keeps paying. Real CMS rates, real elapsed time — the
-    // COO's own complaint, turned into a number.
-    const overdueUsd = live
-      .filter((o) => o.pickup && !o.pickup.completedAt)
-      .reduce((sum, o) => {
-        const due = new Date(o.pickup!.dueAt).getTime();
-        if (now <= due) return sum;
-        const extraDays = Math.ceil((now - due) / (24 * H));
-        return (
-          sum +
-          extraDays * o.items.reduce((s, i) => s + dailyRateUsd(i.hcpcs), 0)
-        );
-      }, 0);
+    // COO's own complaint, turned into a number. Shares postPickupIdleCost
+    // with the board/Analytics client views (app/board/derive.ts) so this
+    // and the on-screen number can't drift apart on stage — they used to,
+    // from wall-clock-vs-engine-time and fractional-vs-whole-day rounding.
+    const overdueUsd = postPickupIdleCost(live, now);
 
     // ── Cost, broken down by capability ──────────────────────
     // Deliverable B asks for cost per order. One blended number stopped

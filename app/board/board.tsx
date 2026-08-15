@@ -80,6 +80,7 @@ export function HospicePortal() {
     return <div className="min-h-dvh bg-page" />;
 
   const { orders, patients, vendors } = state;
+  const now = new Date(state.now).getTime();
   const inbox = toPortalInbox(state.inbox);
   const vendorName = (id: string) => vendors.find((v) => v.id === id)?.name ?? id;
 
@@ -207,6 +208,7 @@ export function HospicePortal() {
             orders={orders}
             patients={patients}
             vendors={vendors}
+            now={now}
             vendorName={vendorName}
             onNewOrder={(patientId) => {
               setNewOrderFor(patientId);

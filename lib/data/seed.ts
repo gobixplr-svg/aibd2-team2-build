@@ -447,8 +447,11 @@ export interface Seed {
  */
 export function buildSeed(now: number): Seed {
   const seeded = buildPatients();
-  const patients: Patient[] = seeded.map(({ dx, address, ...p }) => {
-    void dx;
+  // dx now reaches the UI (Patients tab tag) — it was computed here to drive
+  // DX_EQUIP's equipment weighting and previously discarded before it left
+  // this function. address stays server-side only; no reason for it on a
+  // person-indexed equipment-coordination view.
+  const patients: Patient[] = seeded.map(({ address, ...p }) => {
     void address;
     return p;
   });

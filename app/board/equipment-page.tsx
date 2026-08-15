@@ -23,6 +23,7 @@ export function EquipmentPage({
   orders,
   patients,
   vendors,
+  now,
   vendorName,
   onNewOrder,
   onAddNote,
@@ -33,6 +34,7 @@ export function EquipmentPage({
   orders: Order[];
   patients: Patient[];
   vendors: Vendor[];
+  now: number;
   vendorName: (id: string) => string;
   onNewOrder: (patientId?: string) => void;
   onAddNote: (orderId: string, note: string) => void;
@@ -95,6 +97,7 @@ export function EquipmentPage({
           <PatientList
             patients={patients}
             orders={orders}
+            now={now}
             vendorName={vendorName}
             onNewOrder={onNewOrder}
             onRecordPassing={onRecordPassing}
@@ -103,7 +106,7 @@ export function EquipmentPage({
           />
         )}
         {subTab === "analytics" && (
-          <AnalyticsTab orders={orders} patients={patients} vendors={vendors} />
+          <AnalyticsTab orders={orders} patients={patients} vendors={vendors} now={now} />
         )}
       </div>
 

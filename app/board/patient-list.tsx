@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { Order, Patient } from "@/lib/contracts";
-import { RX_SPEND } from "@/lib/data/catalog";
 import {
   daysOnRent,
   dmeSpendFor,
@@ -11,14 +10,19 @@ import {
   openDmeLabel,
   orderDailyRate,
   PILL_CLASS,
+  postPickupIdleCost,
   STATE_LABEL,
 } from "./derive";
 
-const STATUS_LABEL: Record<Patient["status"], string> = {
-  active: "Active",
-  discharged: "Discharged",
-  deceased: "Deceased",
-};
+// Highest-severity open risk across a patient's orders, reusing the exact
+// order-pill colors so this reads as the same signal, just rolled up.
+function patientRisk(patientOrders: Order[]): { label: string; className: string } | null {
+  const pickupDelayed = patientOrders.filter((o) => o.state === "pickup_delayed").length;
+  if (pickupDelayed > 0) return { label: `${pickupDelayed} pickup delayed`, className: PILL_CLASS.pickup_delayed };
+  const atRisk = patientOrders.filter((o) => o.state === "at_risk").length;
+  if (atRisk > 0) return { label: `${atRisk} at risk`, className: PILL_CLASS.at_risk };
+  return null;
+}
 
 interface TimelineEntry {
   at: string;
@@ -48,11 +52,15 @@ function buildTimeline(orders: Order[], vendorName: (id: string) => string): Tim
 
 // Wireframe turn 3, 3b: the census, but DME-first — assets, days on
 // rent, cost per day — instead of turn 2's Open DME / Rx spend columns.
-// Same expand-in-place pattern as 2b.
+// Same expand-in-place pattern as 2b. Turn 4 (4a/4b): diagnosis tag and
+// risk rollup replace the plain status column, the family tracker link
+// moves onto the collapsed row, and the Rx-spend line is gone for good —
+// DME only, no meds-adjacent data even as context.
 export function PatientList({
   patients,
   orders,
   vendorName,
+  now,
   onNewOrder,
   onRecordPassing,
   onAddNote,
@@ -60,6 +68,7 @@ export function PatientList({
 }: {
   patients: Patient[];
   orders: Order[];
+  now: number;
   vendorName: (id: string) => string;
   onNewOrder: (patientId: string) => void;
   onRecordPassing: (patientId: string) => void;
@@ -113,13 +122,14 @@ export function PatientList({
           New order
         </button>
       </div>
-      <div className="grid grid-cols-[14px_1.5fr_.9fr_.9fr_.8fr_.8fr_18px] gap-2.5 border-b border-line pb-2 text-[9px] uppercase tracking-wide text-muted">
+      <div className="grid grid-cols-[14px_1.7fr_1.1fr_.8fr_.95fr_.6fr_54px_18px] gap-2.5 border-b border-line pb-2 text-[9px] uppercase tracking-wide text-muted">
         <div />
         <div>Patient</div>
-        <div>Census</div>
+        <div>Needs attention</div>
         <div>Assets</div>
         <div>DME spend</div>
-        <div>Days on DME</div>
+        <div>Days</div>
+        <div>Family</div>
         <div />
       </div>
 
@@ -131,30 +141,72 @@ export function PatientList({
         const currentDailyRate = patientOrders
           .filter((o) => o.timestamps.delivered && !o.pickup?.completedAt)
           .reduce((s, o) => s + orderDailyRate(o), 0);
-        const idleDailyRate = patientOrders
-          .filter((o) => idlePickupDays(o) > 0)
-          .reduce((s, o) => s + orderDailyRate(o), 0);
+        const idleCostForPatient = postPickupIdleCost(patientOrders, now);
         const vsAvgPct = avgSpend > 0 ? Math.round(((spend - avgSpend) / avgSpend) * 100) : 0;
+        const risk = patientRisk(patientOrders);
 
         return (
           <div key={p.id}>
-            <button
+            <div
+              role="button"
+              tabIndex={0}
               onClick={() => setExpanded(isOpen ? null : p.id)}
-              className="grid w-full grid-cols-[14px_1.5fr_.9fr_.9fr_.8fr_.8fr_18px] items-center gap-2.5 border-b border-line py-3.5 text-left text-xs text-ink"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setExpanded(isOpen ? null : p.id);
+                }
+              }}
+              className="grid w-full cursor-pointer grid-cols-[14px_1.7fr_1.1fr_.8fr_.95fr_.6fr_54px_18px] items-center gap-2.5 border-b border-line py-3.5 text-left text-xs text-ink"
             >
               <span
                 className={`h-[30px] w-[5px] rounded-sm ${isOpen ? "bg-secondary" : "bg-line"}`}
               />
-              <span>
-                <span className="block font-medium">{p.label}</span>
-                <span className="block text-[10px] text-muted">{p.id}</span>
+              <span className="flex items-baseline gap-2">
+                <span className="font-medium">{p.label}</span>
+                {p.dx && (
+                  <span className="rounded border border-line px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-ink-soft">
+                    {p.dx}
+                  </span>
+                )}
+                <span className="text-[10px] text-muted">{p.id}</span>
               </span>
-              <span className="text-[11px] text-ink-soft">{STATUS_LABEL[p.status]}</span>
+              <span>
+                {risk && (
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${risk.className}`}
+                  >
+                    {risk.label}
+                  </span>
+                )}
+              </span>
               <span className="text-[11px]">{openDmeLabel(patientOrders)}</span>
-              <span className="text-[11px]">${spend.toLocaleString()}</span>
+              <span className="text-[11px]">
+                ${spend.toLocaleString()}
+                {avgSpend > 0 && (
+                  <span className="ml-1 text-[9px] text-ink-soft">
+                    {vsAvgPct >= 0 ? "+" : ""}
+                    {vsAvgPct}%
+                  </span>
+                )}
+              </span>
               <span className="text-[11px]">{Math.round(days)}</span>
+              <span className="text-[10px] text-ink-soft">
+                {p.familyToken ? (
+                  <Link
+                    href={`/f/${p.familyToken}`}
+                    target="_blank"
+                    onClick={(e) => e.stopPropagation()}
+                    className="hover:text-teal"
+                  >
+                    Tracker ↗
+                  </Link>
+                ) : (
+                  "—"
+                )}
+              </span>
               <span className="text-right text-[13px] text-muted">{isOpen ? "⌄" : "›"}</span>
-            </button>
+            </div>
 
             {isOpen && (
               <div className="mb-2.5 rounded-xl border border-line bg-page p-4 shadow-sm">
@@ -189,6 +241,33 @@ export function PatientList({
                       </div>
                     )}
 
+                    {patientOrders
+                      .filter((o) => idlePickupDays(o, now) > 0)
+                      .map((o) => {
+                        const overdueDays = idlePickupDays(o, now);
+                        const rate = orderDailyRate(o);
+                        const hours = Math.round(
+                          (now - new Date(o.pickup!.dueAt).getTime()) / 3_600_000,
+                        );
+                        const hcpcs = o.items.map((it) => it.hcpcs).join(" + ");
+                        return (
+                          <div
+                            key={o.id}
+                            className="mt-3 rounded-md border border-critical bg-surface p-3 text-[11px] leading-relaxed text-ink"
+                          >
+                            <div>
+                              Pickup overdue {hours}h —{" "}
+                              <span className="font-semibold">${(overdueDays * rate).toFixed(2)}</span>{" "}
+                              accrued past the 24-hour window.
+                            </div>
+                            <div className="mt-1.5 text-[10px] text-ink-soft">
+                              {overdueDays} overdue day{overdueDays === 1 ? "" : "s"} × $
+                              {rate.toFixed(2)}/day · CMS rate for {hcpcs}
+                            </div>
+                          </div>
+                        );
+                      })}
+
                     <div className="mt-3.5 mb-1.5 text-[9px] uppercase tracking-wide text-muted">
                       Timeline
                     </div>
@@ -216,10 +295,10 @@ export function PatientList({
                         value={avgSpend > 0 ? `${vsAvgPct >= 0 ? "+" : ""}${vsAvgPct}%` : "—"}
                         critical={vsAvgPct > 0}
                       />
-                      {idleDailyRate > 0 && (
+                      {idleCostForPatient > 0 && (
                         <Row
-                          label="Idle rental risk"
-                          value={`$${idleDailyRate.toFixed(2)}/day past pickup`}
+                          label="Overdue rental"
+                          value={`$${idleCostForPatient.toFixed(2)} accruing`}
                           critical
                         />
                       )}
@@ -267,10 +346,6 @@ export function PatientList({
                           Record passing
                         </button>
                       )}
-                    </div>
-                    <div className="mt-2.5 text-[9px] text-muted">
-                      Rx spend: ${(RX_SPEND[p.id] ?? 0).toLocaleString()} (not DME — shown on
-                      the census, dropped here per the DME-only Equipment tab)
                     </div>
                   </div>
                 </div>

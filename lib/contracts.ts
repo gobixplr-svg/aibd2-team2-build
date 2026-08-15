@@ -95,6 +95,7 @@ export interface Vendor {
 export interface Patient {
   id: string;
   label: string;
+  dx?: string; // diagnosis category (CMS mix) — why this equipment, not a clinical field
   familyToken?: string; // magic-link token for /f/[token]
   status: "active" | "discharged" | "deceased";
 }
