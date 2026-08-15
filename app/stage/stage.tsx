@@ -5,16 +5,18 @@
 // Three live surfaces (hospice board, vendor phone, family tracker) are
 // the real pages in same-origin iframes, all polling the same server
 // world, so an action in any panel shows up in the others within ~2s.
-// The director bar along the bottom replaces /control during the pitch:
-// one cue per beat, and the two time-jump beats fire the same guarded
+//
+// The bottom strip is a permanent control bar, not a script: rehearsal
+// showed the presenter drives the demo by clicking through the app
+// itself, so the beat system (cues, Next, auto-advance) came out and
+// only the controls stayed — reset, referral, the three tick moves, and
+// the live per-kind ledger readout. The spoken beats live in
+// docs/game-day-runbook.md; this bar just gives the presenter's hands
+// what they need without leaving the tab. Buttons fire the same guarded
 // endpoints /control uses (secret typed once, kept in sessionStorage
 // under the same key, so unlocking either page unlocks both).
-//
-// The presenter's motion for the entire demo: read the cue, click Next,
-// occasionally click inside a panel. The physical phone still gets its
-// one moment at beat 3 — hold it up, then run everything from here.
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 const REFERRAL = `REFERRAL — Mountain View Regional Medical Center · Discharge Planning
 Pt: Sorensen, L. — hospice, discharging home to spouse's care
@@ -27,115 +29,6 @@ Per Dr. Patel:
 
 Stairs at front entry — delivery crew should call ahead.`;
 
-interface Beat {
-  title: string;
-  cue: string;
-  say?: string;
-  action?: { label: string; confirm?: string; run: "reset" | "speed-tick" | "jump-tick" };
-  copyReferral?: boolean;
-  // data-spotlight target on the board — rings the control this beat is
-  // about (lib/spotlight.ts listens in the board iframe).
-  spotlight?: string;
-  // fetch cost.byKind and put the per-kind lines in the note bar, so the
-  // presenter quotes real numbers instead of remembering them.
-  showLedger?: boolean;
-  // Auto-advance: the story metric whose INCREASE (vs. a baseline taken
-  // when the beat became active) means this beat's on-screen work is done.
-  // Edge-triggered so pre-existing world state never skips beats.
-  advanceOn?: keyof StoryCounts;
-}
-
-// The handful of world facts the director bar watches to follow the story.
-interface StoryCounts {
-  orders: number; // any new order placed (intake done)
-  moving: number; // dispatched / in transit (vendor accepted)
-  atRisk: number; // flagged before it's late
-  delivered: number; // POD confirmed
-  windows: number; // pickup retrieval window committed
-  approvals: number; // human approved an inbox item (family draft sent)
-}
-
-interface WorldOrder {
-  state: string;
-  pickup?: { windowStart?: string };
-}
-
-function toCounts(s: { orders?: WorldOrder[]; inbox?: { status?: string }[] }): StoryCounts {
-  const orders = s.orders ?? [];
-  const inbox = s.inbox ?? [];
-  return {
-    orders: orders.length,
-    moving: orders.filter((o) => o.state === "dispatched" || o.state === "in_transit").length,
-    atRisk: orders.filter((o) => o.state === "at_risk").length,
-    delivered: orders.filter((o) => o.state === "delivered").length,
-    windows: orders.filter((o) => o.pickup?.windowStart).length,
-    approvals: inbox.filter((i) => i.status === "approved").length,
-  };
-}
-
-const BEATS: Beat[] = [
-  {
-    title: "Rig check",
-    cue: "Reset the world, confirm the census seeds. Always pick Wasatch in the intake beat so the vendor panel matches.",
-    action: { label: "Reset world", confirm: "Reset the shared prod world?", run: "reset" },
-  },
-  {
-    title: "Cold open — one screen",
-    cue: "Board panel → Equipment ▸ By patient. Census grouped by assets, spend and risk per patient.",
-    say: "Everything for every patient, finally on one screen — the single pane of glass your VP asked for.",
-    spotlight: "subtab-by-patient",
-  },
-  {
-    title: "AI intake",
-    cue: "Board → New order → paste the referral (button here) → Extract. Point at confidence chips + the 'Didn't map: shower bench' callout. Confirm patient, pick Wasatch, Place order.",
-    say: "When the AI isn't sure it says so per field — and what it can't map it hands back instead of guessing. A human confirms every field. About half a cent per extraction.",
-    copyReferral: true,
-    spotlight: "new-order",
-    advanceOn: "orders",
-  },
-  {
-    title: "Vendor, zero login",
-    cue: "Vendor panel (or hold up the phone): Accept order → in transit.",
-    say: "Magic link, no account, no install. Both sides are the same server world — one database, no smoke.",
-    advanceOn: "moving",
-  },
-  {
-    title: "Risk fires before it's late",
-    cue: "Fire the button, then point at the flagged order on the board: computed numbers + the ranked why with its confidence.",
-    say: "The model receives computed features and returns a choice from a fixed list. It cannot invent a delivery status — that failure mode is closed off architecturally.",
-    action: { label: "Speed 60× + Tick now", run: "speed-tick" },
-    advanceOn: "atRisk",
-  },
-  {
-    title: "Delivered, family sees it",
-    cue: "Vendor panel: Delivered → POD condition checklist. Family panel updates on its own.",
-    say: "Proof of delivery with condition capture — and the family already knows the bed is set up.",
-    advanceOn: "delivered",
-  },
-  {
-    title: "The hard part of hospice",
-    cue: "Board ▸ By patient → expand → Record passing (own confirm). Vendor panel: Acknowledge pickup → commit a retrieval window. Family panel shows the window.",
-    say: "Closed loop: acknowledged, scheduled, completed — with a 24-hour SLA clock. Nobody in this market closes this loop.",
-    spotlight: "subtab-by-patient",
-    advanceOn: "windows",
-  },
-  {
-    title: "Escalation, human approval",
-    cue: "Fire the button. Approvals tray (board header): edit ONE word of the Claude family draft → Approve & send. If a reroute is waiting, approve it and glance at the vendor panel.",
-    say: "Anything a family reads is drafted by AI and sent by a person. Never Hermes alone.",
-    action: { label: "+25h + Tick now", run: "jump-tick" },
-    spotlight: "approvals",
-    advanceOn: "approvals",
-  },
-  {
-    title: "Close on the ledger",
-    cue: "The live per-kind lines appear below (never quote the blended per-touch number).",
-    say: "Every model call tonight is metered — roughly a cent per at-risk order triaged, half a cent per intake. Measured, not estimated. The engine costs nothing when nothing is wrong.",
-    spotlight: "subtab-analytics",
-    showLedger: true,
-  },
-];
-
 interface TickInfo {
   aiUsed: boolean;
   costUsd: number;
@@ -146,79 +39,9 @@ interface TickInfo {
 export function StagePage() {
   const [key, setKey] = useState("");
   const [keyLoaded, setKeyLoaded] = useState(false);
-  const [beat, setBeat] = useState(0);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [autoAdvance, setAutoAdvance] = useState(true);
-  const boardFrame = useRef<HTMLIFrameElement>(null);
-
-  // Follow the story: while the current beat has an advanceOn metric, poll
-  // the world and step forward when that metric rises above the baseline
-  // taken as the beat became active. The presenter clicks in the panels;
-  // the bar keeps up. Manual Prev/Next always still work, and the toggle
-  // kills it instantly if it ever misfires mid-pitch.
-  useEffect(() => {
-    const metric = BEATS[beat].advanceOn;
-    if (!autoAdvance || !metric) return;
-    let baseline: StoryCounts | null = null;
-    let cancelled = false;
-    const check = async () => {
-      try {
-        const res = await fetch("/api/state?scope=hospice");
-        const s = await res.json();
-        if (cancelled) return;
-        const counts = toCounts(s);
-        if (!baseline) {
-          baseline = counts;
-          return;
-        }
-        if (counts[metric] > baseline[metric]) {
-          cancelled = true;
-          setNote(`✓ ${BEATS[beat].title} — done on the board, advancing`);
-          setBeat((x) => Math.min(BEATS.length - 1, x + 1));
-        }
-      } catch {
-        // polling is best-effort; the presenter still has Next
-      }
-    };
-    check();
-    const id = setInterval(check, 2000);
-    return () => {
-      cancelled = true;
-      clearInterval(id);
-    };
-  }, [beat, autoAdvance]);
-
-  // On beat change: ring the control this beat is about on the board, and
-  // for the ledger close pull the real per-kind numbers into the note bar.
-  useEffect(() => {
-    const b = BEATS[beat];
-    if (b.spotlight) {
-      boardFrame.current?.contentWindow?.postMessage(
-        { type: "hf-spotlight", target: b.spotlight },
-        window.location.origin,
-      );
-    }
-    if (b.showLedger) {
-      fetch("/api/state?scope=hospice")
-        .then((r) => r.json())
-        .then((s) => {
-          const byKind = s?.cost?.byKind as
-            | Record<string, { units: number; usd: number; perUnitUsd: number }>
-            | undefined;
-          if (!byKind || Object.keys(byKind).length === 0) return;
-          const lines = Object.entries(byKind)
-            .map(
-              ([k, v]) =>
-                `${k.replace(/_/g, " ")} $${v.perUnitUsd.toFixed(4)}/unit (${v.units} × → $${v.usd.toFixed(2)})`,
-            )
-            .join("  ·  ");
-          setNote(`Ledger, live: ${lines}`);
-        })
-        .catch(() => {});
-    }
-  }, [beat]);
 
   useEffect(() => {
     // Deferred — same never-a-sync-setState convention as use-world.ts.
@@ -253,36 +76,69 @@ export function StagePage() {
     [key],
   );
 
-  const fire = useCallback(
-    async (action: NonNullable<Beat["action"]>) => {
-      if (action.confirm && !window.confirm(action.confirm)) return;
+  const run = useCallback(
+    async (label: string, fn: () => Promise<string>) => {
       setBusy(true);
       setError(null);
       setNote(null);
       try {
-        if (action.run === "reset") {
-          await call("/api/reset");
-          setNote("World reset — seeded fresh.");
-          // Rig check is done the moment the reset lands.
-          setBeat((x) => (x === 0 ? 1 : x));
-        } else {
-          if (action.run === "speed-tick") await call("/api/clock", { speed: 60 });
-          else await call("/api/clock", { jumpHours: 25 });
-          const tick = (await call("/api/tick")) as TickInfo;
-          setNote(
-            `Tick: ${tick.inboxCreated} inbox row(s) · ${
-              tick.aiUsed ? `AI, $${tick.costUsd.toFixed(4)}` : `no call (${tick.fallbackReason ?? "n/a"})`
-            }`,
-          );
-        }
+        setNote(await fn());
       } catch (err) {
-        setError(err instanceof Error ? err.message : String(err));
+        setError(`${label}: ${err instanceof Error ? err.message : String(err)}`);
       } finally {
         setBusy(false);
       }
     },
-    [call],
+    [],
   );
+
+  const tickNote = (tick: TickInfo) =>
+    `Tick: ${tick.inboxCreated} inbox row(s) · ${
+      tick.aiUsed ? `AI, $${tick.costUsd.toFixed(4)}` : `no call (${tick.fallbackReason ?? "n/a"})`
+    }`;
+
+  const resetWorld = () => {
+    if (!window.confirm("Reset the shared prod world?")) return;
+    run("Reset", async () => {
+      await call("/api/reset");
+      return "World reset — seeded fresh.";
+    });
+  };
+
+  const tickNow = () =>
+    run("Tick", async () => tickNote((await call("/api/tick")) as TickInfo));
+
+  const speedTick = () =>
+    run("60× + Tick", async () => {
+      await call("/api/clock", { speed: 60 });
+      return tickNote((await call("/api/tick")) as TickInfo);
+    });
+
+  const jumpTick = () =>
+    run("+25h + Tick", async () => {
+      await call("/api/clock", { jumpHours: 25 });
+      return tickNote((await call("/api/tick")) as TickInfo);
+    });
+
+  // The per-kind cost lines render nowhere else — this pulls them live so
+  // the presenter quotes real numbers at the close (never the blended
+  // per-touch figure).
+  const showLedger = () =>
+    run("Ledger", async () => {
+      const res = await fetch("/api/state?scope=hospice");
+      const s = await res.json();
+      const byKind = s?.cost?.byKind as
+        | Record<string, { units: number; usd: number; perUnitUsd: number }>
+        | undefined;
+      if (!byKind || Object.keys(byKind).length === 0) return "Ledger: no model calls yet.";
+      const lines = Object.entries(byKind)
+        .map(
+          ([k, v]) =>
+            `${k.replace(/_/g, " ")} $${v.perUnitUsd.toFixed(4)}/unit (${v.units} × → $${v.usd.toFixed(2)})`,
+        )
+        .join("  ·  ");
+      return `Ledger, live: ${lines}`;
+    });
 
   const copyReferral = async () => {
     try {
@@ -292,8 +148,6 @@ export function StagePage() {
       setError("Clipboard blocked — copy from docs/prod-click-through.md instead.");
     }
   };
-
-  const b = BEATS[beat];
 
   return (
     <div className="flex h-dvh flex-col bg-page">
@@ -305,12 +159,7 @@ export function StagePage() {
             detail="case manager's board · laptop"
             accent="bg-navy"
           />
-          <iframe
-            ref={boardFrame}
-            src="/board"
-            title="Hospice board"
-            className="h-full w-full flex-1 border-0"
-          />
+          <iframe src="/board" title="Hospice board" className="h-full w-full flex-1 border-0" />
         </div>
         <div className="flex w-[340px] shrink-0 flex-col gap-2 md:w-[380px]">
           <div className="flex min-h-0 flex-[3] flex-col overflow-hidden rounded-lg border-2 border-teal bg-surface">
@@ -337,7 +186,7 @@ export function StagePage() {
       <div className="border-t border-line-strong bg-navy px-3 py-2.5 text-white">
         {!keyLoaded ? null : !key ? (
           <div className="flex items-center gap-2">
-            <span className="text-xs text-white/80">Director bar is locked — paste the Hermes secret:</span>
+            <span className="text-xs text-white/80">Control bar is locked — paste the Hermes secret:</span>
             <input
               type="password"
               autoComplete="off"
@@ -351,60 +200,56 @@ export function StagePage() {
           </div>
         ) : (
           <div className="flex flex-col gap-1.5">
-            <div className="flex items-center gap-3">
-              <span className="shrink-0 rounded-sm bg-brand px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide">
-                Beat {beat + 1}/{BEATS.length}
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="mr-1.5 shrink-0 rounded-sm bg-brand px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide">
+                Demo controls
               </span>
-              <span className="shrink-0 text-sm font-semibold">{b.title}</span>
-              <span className="ml-auto flex shrink-0 items-center gap-1.5">
-                {b.copyReferral && (
-                  <button
-                    onClick={copyReferral}
-                    className="rounded-md border border-white/25 px-2.5 py-1.5 text-xs font-semibold hover:bg-white/10"
-                  >
-                    Copy referral
-                  </button>
-                )}
-                {b.action && (
-                  <button
-                    onClick={() => fire(b.action!)}
-                    disabled={busy}
-                    className="rounded-md bg-brand px-2.5 py-1.5 text-xs font-bold hover:bg-brand-alt disabled:opacity-50"
-                  >
-                    {busy ? "…" : b.action.label}
-                  </button>
-                )}
-                <label className="flex cursor-pointer items-center gap-1.5 rounded-md border border-white/15 px-2 py-1.5 text-[10px] text-white/60">
-                  <input
-                    type="checkbox"
-                    checked={autoAdvance}
-                    onChange={(e) => setAutoAdvance(e.target.checked)}
-                    className="h-3 w-3 accent-(--brx-teal)"
-                  />
-                  Follow the story
-                </label>
-                <button
-                  onClick={() => setBeat((x) => Math.max(0, x - 1))}
-                  disabled={beat === 0}
-                  className="rounded-md border border-white/25 px-2.5 py-1.5 text-xs font-semibold hover:bg-white/10 disabled:opacity-30"
-                >
-                  ◀ Prev
-                </button>
-                <button
-                  onClick={() => setBeat((x) => Math.min(BEATS.length - 1, x + 1))}
-                  disabled={beat === BEATS.length - 1}
-                  className="rounded-md bg-teal px-3.5 py-1.5 text-xs font-bold text-navy hover:opacity-90 disabled:opacity-30"
-                >
-                  Next ▶
-                </button>
-              </span>
+              <button
+                onClick={resetWorld}
+                disabled={busy}
+                className="rounded-md border border-white/25 px-2.5 py-1.5 text-xs font-semibold hover:bg-white/10 disabled:opacity-50"
+              >
+                Reset world
+              </button>
+              <button
+                onClick={copyReferral}
+                disabled={busy}
+                className="rounded-md border border-white/25 px-2.5 py-1.5 text-xs font-semibold hover:bg-white/10 disabled:opacity-50"
+              >
+                Copy referral
+              </button>
+              <span className="mx-1 h-5 w-px bg-white/20" />
+              <button
+                onClick={tickNow}
+                disabled={busy}
+                className="rounded-md bg-teal px-2.5 py-1.5 text-xs font-bold text-navy hover:opacity-90 disabled:opacity-50"
+              >
+                Tick now
+              </button>
+              <button
+                onClick={speedTick}
+                disabled={busy}
+                className="rounded-md bg-brand px-2.5 py-1.5 text-xs font-bold hover:bg-brand-alt disabled:opacity-50"
+              >
+                Speed 60× + Tick
+              </button>
+              <button
+                onClick={jumpTick}
+                disabled={busy}
+                className="rounded-md bg-brand px-2.5 py-1.5 text-xs font-bold hover:bg-brand-alt disabled:opacity-50"
+              >
+                +25h + Tick
+              </button>
+              <span className="mx-1 h-5 w-px bg-white/20" />
+              <button
+                onClick={showLedger}
+                disabled={busy}
+                className="rounded-md border border-white/25 px-2.5 py-1.5 text-xs font-semibold hover:bg-white/10 disabled:opacity-50"
+              >
+                Ledger
+              </button>
+              {busy && <span className="text-xs text-white/60">…</span>}
             </div>
-            <div className="flex items-baseline gap-3 text-xs leading-snug">
-              <span className="text-white/90">{b.cue}</span>
-            </div>
-            {b.say && (
-              <div className="text-xs italic leading-snug text-teal">&ldquo;{b.say}&rdquo;</div>
-            )}
             {(note ?? error) && (
               <div className={`text-[11px] ${error ? "text-brand-alt" : "text-white/60"}`}>
                 {error ?? note}
