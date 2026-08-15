@@ -76,7 +76,8 @@ export interface TriagedAction {
 
 export interface TriageOutcome {
   actions: TriagedAction[];
-  aiUsed: boolean;
+  aiUsed: boolean; // did we call the model on this beat?
+  aiDerived?: boolean; // are these actions the model's, or the ladder's?
   fallbackReason?: string;
   ledger?: TokenLedgerEntry;
 }
@@ -179,7 +180,7 @@ function fallback(
         confidence: 1, // deterministic — no uncertainty to report
       };
     });
-  return { actions, aiUsed: false, fallbackReason: reason };
+  return { actions, aiUsed: false, aiDerived: false, fallbackReason: reason };
 }
 
 /**
@@ -194,7 +195,7 @@ export async function triage(
   useAi: boolean,
 ): Promise<TriageOutcome> {
   // Stage 2 gates stage 3. No interesting orders → no call → zero cost.
-  if (inputs.length === 0) return { actions: [], aiUsed: false };
+  if (inputs.length === 0) return { actions: [], aiUsed: false, aiDerived: false };
   if (!useAi) return fallback(inputs, "rules_only_toggle");
 
   const anthropic = getClient();
@@ -274,7 +275,7 @@ export async function triage(
         (u.output_tokens / 1e6) * OUT_PER_MTOK,
     };
 
-    return { actions, aiUsed: true, ledger };
+    return { actions, aiUsed: true, aiDerived: true, ledger };
   } catch (err) {
     return fallback(
       inputs,

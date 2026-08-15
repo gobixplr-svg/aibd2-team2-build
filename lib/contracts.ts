@@ -291,8 +291,9 @@ export interface World {
   // unchanged world ~288 times a day — which both wastes money and makes
   // "cost scales with at-risk orders, not tick frequency" untrue.
   lastTriage?: {
-    fingerprint: string; // orderId + reason codes, sorted
+    fingerprint: string; // useAiTriage + orderId + reason codes, sorted
     at: string;
+    aiDerived: boolean; // were these actions the model's, or the ladder's?
     actions: {
       orderId: string;
       action: string;
