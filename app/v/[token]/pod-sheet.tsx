@@ -15,6 +15,19 @@ const CHECKS: { key: keyof Omit<ConditionCheck, "note">; label: string }[] = [
   { key: "complete", label: "All parts present" },
 ];
 
+// A blob: URL only resolves in the browser that created it — useless once
+// the POD travels through the server to the board. Downscale to a small
+// JPEG data URL instead so the photo renders on every surface.
+async function fileToDataUrl(file: File): Promise<string> {
+  const bitmap = await createImageBitmap(file);
+  const scale = Math.min(1, 900 / Math.max(bitmap.width, bitmap.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(bitmap.width * scale);
+  canvas.height = Math.round(bitmap.height * scale);
+  canvas.getContext("2d")!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL("image/jpeg", 0.72);
+}
+
 export function PodSheet({
   order,
   mode,
@@ -66,7 +79,8 @@ export function PodSheet({
             capture="environment"
             onChange={(e) => {
               const f = e.target.files?.[0];
-              if (f) setPhotoUrl(URL.createObjectURL(f));
+              if (!f) return;
+              fileToDataUrl(f).then(setPhotoUrl, () => setPhotoUrl(URL.createObjectURL(f)));
             }}
             className="text-xs text-muted file:mr-2 file:rounded-md file:border-0 file:bg-secondary file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white"
           />

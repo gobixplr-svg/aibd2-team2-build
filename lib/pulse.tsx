@@ -12,6 +12,15 @@ import { useEffect, useRef, useState } from "react";
 // Anything mounting in the first seconds is initial render, not news.
 const PAGE_LOAD = Date.now();
 
+// When several rows pulse in the same tick, only the first one gets to
+// scroll — otherwise they fight and the view lands somewhere useless.
+let lastScrollAt = 0;
+function scrollToNews(node: HTMLElement | null) {
+  if (!node || Date.now() - lastScrollAt < 1500) return;
+  lastScrollAt = Date.now();
+  node.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
 export function Pulse({
   watch,
   className = "",
@@ -24,6 +33,7 @@ export function Pulse({
   const [on, setOn] = useState(false);
   const prev = useRef<unknown>(undefined);
   const first = useRef(true);
+  const el = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (first.current) {
@@ -36,7 +46,10 @@ export function Pulse({
       prev.current = watch;
     }
     // Deferred — same never-a-sync-setState convention as use-world.ts.
-    const on = setTimeout(() => setOn(true), 0);
+    const on = setTimeout(() => {
+      setOn(true);
+      scrollToNews(el.current);
+    }, 0);
     const off = setTimeout(() => setOn(false), 2200);
     return () => {
       clearTimeout(on);
@@ -44,5 +57,9 @@ export function Pulse({
     };
   }, [watch]);
 
-  return <div className={`${className} ${on ? "pulse-change" : ""}`}>{children}</div>;
+  return (
+    <div ref={el} className={`${className} ${on ? "pulse-change" : ""}`}>
+      {children}
+    </div>
+  );
 }

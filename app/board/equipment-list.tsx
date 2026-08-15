@@ -89,6 +89,7 @@ export function EquipmentList({
           className="ml-auto rounded-full border border-dashed border-line-strong bg-page px-3 py-1.5 text-[11px] text-ink placeholder:text-muted"
         />
         <button
+          data-spotlight="new-order"
           onClick={onNewOrder}
           className="rounded-md bg-brand px-3.5 py-1.5 text-[11px] font-semibold text-white"
         >
@@ -199,6 +200,34 @@ export function EquipmentList({
                         {o.note || "No notes yet."}
                       </div>
                     </div>
+                    {o.pod && (
+                      <div className="mt-3">
+                        <div className="mb-1.5 text-[9px] uppercase tracking-wide text-muted">
+                          Proof of delivery
+                        </div>
+                        <div className="flex gap-3 rounded-md border border-line bg-surface p-3">
+                          {o.pod.photoUrl && (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={o.pod.photoUrl}
+                              alt="Equipment in place"
+                              className="h-20 w-20 rounded-md border border-line object-cover"
+                            />
+                          )}
+                          <div className="text-[11px] leading-relaxed text-ink">
+                            <div>
+                              Received by <span className="font-medium">{o.pod.signedBy ?? "—"}</span>
+                            </div>
+                            <div className="text-[10px] text-ink-soft">
+                              {o.pod.condition.clean && o.pod.condition.functional && o.pod.condition.complete
+                                ? "Condition: all checks passed"
+                                : `Condition issue: ${o.pod.condition.note ?? "see vendor note"}`}
+                            </div>
+                            <div className="text-[10px] text-muted">{deadlineLabel(o.pod.at)}</div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                     <div className="mt-3 flex flex-wrap justify-end gap-1.5">
                       <button
                         onClick={() => onAddNote(o.id)}

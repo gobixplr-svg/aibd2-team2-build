@@ -14,7 +14,7 @@
 // occasionally click inside a panel. The physical phone still gets its
 // one moment at beat 3 — hold it up, then run everything from here.
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 const REFERRAL = `REFERRAL — Mountain View Regional Medical Center · Discharge Planning
 Pt: Sorensen, L. — hospice, discharging home to spouse's care
@@ -33,6 +33,12 @@ interface Beat {
   say?: string;
   action?: { label: string; confirm?: string; run: "reset" | "speed-tick" | "jump-tick" };
   copyReferral?: boolean;
+  // data-spotlight target on the board — rings the control this beat is
+  // about (lib/spotlight.ts listens in the board iframe).
+  spotlight?: string;
+  // fetch cost.byKind and put the per-kind lines in the note bar, so the
+  // presenter quotes real numbers instead of remembering them.
+  showLedger?: boolean;
 }
 
 const BEATS: Beat[] = [
@@ -45,12 +51,14 @@ const BEATS: Beat[] = [
     title: "Cold open — one screen",
     cue: "Board panel → Equipment ▸ By patient. Census grouped by assets, spend and risk per patient.",
     say: "Everything for every patient, finally on one screen — the single pane of glass your VP asked for.",
+    spotlight: "subtab-by-patient",
   },
   {
     title: "AI intake",
     cue: "Board → New order → paste the referral (button here) → Extract. Point at confidence chips + the 'Didn't map: shower bench' callout. Confirm patient, pick Wasatch, Place order.",
     say: "When the AI isn't sure it says so per field — and what it can't map it hands back instead of guessing. A human confirms every field. About half a cent per extraction.",
     copyReferral: true,
+    spotlight: "new-order",
   },
   {
     title: "Vendor, zero login",
@@ -72,17 +80,21 @@ const BEATS: Beat[] = [
     title: "The hard part of hospice",
     cue: "Board ▸ By patient → expand → Record passing (own confirm). Vendor panel: Acknowledge pickup → commit a retrieval window. Family panel shows the window.",
     say: "Closed loop: acknowledged, scheduled, completed — with a 24-hour SLA clock. Nobody in this market closes this loop.",
+    spotlight: "subtab-by-patient",
   },
   {
     title: "Escalation, human approval",
     cue: "Fire the button. Approvals tray (board header): edit ONE word of the Claude family draft → Approve & send. If a reroute is waiting, approve it and glance at the vendor panel.",
     say: "Anything a family reads is drafted by AI and sent by a person. Never Hermes alone.",
     action: { label: "+25h + Tick now", run: "jump-tick" },
+    spotlight: "approvals",
   },
   {
     title: "Close on the ledger",
-    cue: "Quote the per-kind cost lines (never the blended per-touch number).",
+    cue: "The live per-kind lines appear below (never quote the blended per-touch number).",
     say: "Every model call tonight is metered — roughly a cent per at-risk order triaged, half a cent per intake. Measured, not estimated. The engine costs nothing when nothing is wrong.",
+    spotlight: "subtab-analytics",
+    showLedger: true,
   },
 ];
 
@@ -100,6 +112,37 @@ export function StagePage() {
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const boardFrame = useRef<HTMLIFrameElement>(null);
+
+  // On beat change: ring the control this beat is about on the board, and
+  // for the ledger close pull the real per-kind numbers into the note bar.
+  useEffect(() => {
+    const b = BEATS[beat];
+    if (b.spotlight) {
+      boardFrame.current?.contentWindow?.postMessage(
+        { type: "hf-spotlight", target: b.spotlight },
+        window.location.origin,
+      );
+    }
+    if (b.showLedger) {
+      fetch("/api/state?scope=hospice")
+        .then((r) => r.json())
+        .then((s) => {
+          const byKind = s?.cost?.byKind as
+            | Record<string, { units: number; usd: number; perUnitUsd: number }>
+            | undefined;
+          if (!byKind || Object.keys(byKind).length === 0) return;
+          const lines = Object.entries(byKind)
+            .map(
+              ([k, v]) =>
+                `${k.replace(/_/g, " ")} $${v.perUnitUsd.toFixed(4)}/unit (${v.units} × → $${v.usd.toFixed(2)})`,
+            )
+            .join("  ·  ");
+          setNote(`Ledger, live: ${lines}`);
+        })
+        .catch(() => {});
+    }
+  }, [beat]);
 
   useEffect(() => {
     // Deferred — same never-a-sync-setState convention as use-world.ts.
@@ -184,7 +227,12 @@ export function StagePage() {
             detail="case manager's board · laptop"
             accent="bg-navy"
           />
-          <iframe src="/board" title="Hospice board" className="h-full w-full flex-1 border-0" />
+          <iframe
+            ref={boardFrame}
+            src="/board"
+            title="Hospice board"
+            className="h-full w-full flex-1 border-0"
+          />
         </div>
         <div className="flex w-[340px] shrink-0 flex-col gap-2 md:w-[380px]">
           <div className="flex min-h-0 flex-[3] flex-col overflow-hidden rounded-lg border-2 border-teal bg-surface">

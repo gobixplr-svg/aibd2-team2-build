@@ -24,6 +24,7 @@ export function ApprovalsTray({
   return (
     <div className="relative">
       <button
+        data-spotlight="approvals"
         onClick={() => setOpen((v) => !v)}
         className={`relative rounded-md px-3 py-1.5 text-[11px] font-semibold ${
           openApprovals.length > 0
