@@ -93,8 +93,32 @@ export async function GET(req: Request) {
           items: o.items.map((i) => i.name),
           targetAt: o.targetAt,
           etaAt: o.etaAt,
-          pickup: o.pickup ? { dueAt: o.pickup.dueAt } : undefined,
+          pickup: o.pickup
+            ? {
+                dueAt: o.pickup.dueAt,
+                // The committed retrieval window IS the family-facing
+                // promise — the view renders it, so it has to travel.
+                windowStart: o.pickup.windowStart,
+                windowEnd: o.pickup.windowEnd,
+              }
+            : undefined,
         })),
+        // Care-team messages: a draft reaches this page only after a
+        // human approved it — the resolved inbox row is the send record.
+        careMessages: inbox
+          .filter(
+            (i) =>
+              i.patientId === patient.id &&
+              i.status === "approved" &&
+              typeof i.draft === "string" &&
+              i.draft.trim().length > 0,
+          )
+          .map((i) => ({
+            id: i.id,
+            text: i.draft as string,
+            at: i.resolvedAt ?? i.createdAt,
+          }))
+          .sort((a, b) => b.at.localeCompare(a.at)),
       });
     }
 

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { Order, Patient } from "@/lib/contracts";
+import { DraftCard } from "./draft-card";
 import {
   daysOnRent,
   dmeSpendFor,
@@ -12,6 +13,7 @@ import {
   PILL_CLASS,
   postPickupIdleCost,
   STATE_LABEL,
+  type InboxItem,
 } from "./derive";
 
 // Highest-severity open risk across a patient's orders, reusing the exact
@@ -64,19 +66,25 @@ export function PatientList({
   orders,
   vendorName,
   now,
+  inbox,
   onNewOrder,
   onRecordPassing,
   onAddNote,
   onMessageFamily,
+  onApproveDraft,
+  onDismissDraft,
 }: {
   patients: Patient[];
   orders: Order[];
   now: number;
   vendorName: (id: string) => string;
+  inbox: InboxItem[];
   onNewOrder: (patientId: string) => void;
   onRecordPassing: (patientId: string) => void;
   onAddNote: (orderId: string) => void;
   onMessageFamily: (patientId: string) => Promise<boolean>;
+  onApproveDraft: (id: string, draft?: string) => void;
+  onDismissDraft: (id: string) => void;
 }) {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -381,6 +389,13 @@ export function PatientList({
                           Couldn&apos;t send — try again
                         </span>
                       )}
+                      {inbox
+                        .filter((i) => i.needsApproval && i.draft && i.patientId === p.id)
+                        .map((i) => (
+                          <div key={i.id} className="w-full">
+                            <DraftCard item={i} onApprove={onApproveDraft} onDismiss={onDismissDraft} />
+                          </div>
+                        ))}
                       <button
                         onClick={() => {
                           const target = patientOrders[0];

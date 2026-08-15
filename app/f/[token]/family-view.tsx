@@ -13,10 +13,18 @@ interface FamilyOrder {
   pickup?: { dueAt: string; windowStart?: string; windowEnd?: string };
 }
 
+interface CareMessage {
+  id: string;
+  text: string;
+  at: string;
+}
+
 export function FamilyView({ token }: { token: string }) {
-  const { state, error } = useWorld<{ patient: Patient; orders: FamilyOrder[] }>(
-    `?scope=family&token=${encodeURIComponent(token)}`,
-  );
+  const { state, error } = useWorld<{
+    patient: Patient;
+    orders: FamilyOrder[];
+    careMessages?: CareMessage[];
+  }>(`?scope=family&token=${encodeURIComponent(token)}`);
 
   if (error)
     return (
@@ -28,6 +36,7 @@ export function FamilyView({ token }: { token: string }) {
     return <div className="min-h-dvh bg-cream" />;
 
   const { patient, orders } = state;
+  const careMessages = state.careMessages ?? [];
   const deceased = patient.status === "deceased";
 
   return (
@@ -63,6 +72,26 @@ export function FamilyView({ token }: { token: string }) {
             );
           })}
         </div>
+
+        {careMessages.length > 0 && (
+          <div className="flex flex-col gap-2">
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-ink-soft">
+              From your care team
+            </div>
+            {careMessages.map((m) => (
+              <Pulse key={m.id} watch={m.id} className="rounded-lg bg-surface border border-line p-4">
+                <p className="text-sm leading-relaxed text-ink">{m.text}</p>
+                <div className="mt-1.5 text-[10px] text-muted">
+                  {new Date(m.at).toLocaleString([], {
+                    weekday: "long",
+                    hour: "numeric",
+                    minute: "2-digit",
+                  })}
+                </div>
+              </Pulse>
+            ))}
+          </div>
+        )}
 
         <div className="rounded-lg bg-surface border border-line p-4">
           <div className="text-xs font-semibold text-ink">Questions?</div>

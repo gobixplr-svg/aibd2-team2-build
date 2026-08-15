@@ -4,12 +4,14 @@ import { useState } from "react";
 import type { Order } from "@/lib/contracts";
 import { Pulse } from "@/lib/pulse";
 import { categoryOf } from "@/lib/data/catalog";
+import { DraftCard } from "./draft-card";
 import {
   PILL_CLASS,
   RAIL_CLASS,
   STATE_LABEL,
   deadlineLabel,
   effectiveDeadline,
+  type InboxItem,
 } from "./derive";
 
 // Wireframe turn 3, 3a: the flat deadline-sorted list (turn 2's 2d/2e),
@@ -17,18 +19,24 @@ import {
 // moved into Analytics. This sub-tab is just the list.
 export function EquipmentList({
   orders,
+  inbox,
   vendorName,
   onNewOrder,
   onAddNote,
   onMessageFamily,
   onRequestReroute,
+  onApproveDraft,
+  onDismissDraft,
 }: {
   orders: Order[];
+  inbox: InboxItem[];
   vendorName: (id: string) => string;
   onNewOrder: () => void;
   onAddNote: (orderId: string) => void;
   onMessageFamily: (patientId: string) => Promise<boolean>;
   onRequestReroute: (orderId: string) => void;
+  onApproveDraft: (id: string, draft?: string) => void;
+  onDismissDraft: (id: string) => void;
 }) {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -228,6 +236,16 @@ export function EquipmentList({
                         </div>
                       </div>
                     )}
+                    {inbox
+                      .filter((i) => i.needsApproval && i.draft && i.patientId === o.patientId)
+                      .map((i) => (
+                        <DraftCard
+                          key={i.id}
+                          item={i}
+                          onApprove={onApproveDraft}
+                          onDismiss={onDismissDraft}
+                        />
+                      ))}
                     <div className="mt-3 flex flex-wrap justify-end gap-1.5">
                       <button
                         onClick={() => onAddNote(o.id)}
