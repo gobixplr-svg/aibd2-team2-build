@@ -84,6 +84,23 @@ const DX_EQUIP: Record<Dx, [string, number][]> = {
   endocrine: [["K0001", 30], ["E0143", 30], ["E0260", 20], ["E0163", 20]],
 };
 
+// ── Medication spend, by diagnosis (guessed — see file header rule) ──
+// The Medicare Hospice Benefit bundles most drug costs into the per-diem
+// rate, so there's no clean CMS PUF line item to cite here the way there
+// is for DME. These ranges are a guess at relative symptom-management
+// intensity by diagnosis (cancer skews highest — pain/nausea management;
+// endocrine lowest), synthetic stand-in for what a real BetterRX eRx feed
+// would report. Required by the bounty's own Required Features list:
+// "Total cost-of-care visibility. DME spend alongside medication spend,
+// not in a separate silo."
+const RX_MONTHLY_RANGE: Record<Dx, [number, number]> = {
+  cancer: [1500, 3200],
+  neuro: [900, 2200],
+  respiratory: [700, 1800],
+  circulatory: [600, 1600],
+  endocrine: [500, 1400],
+};
+
 // ── Vendors ──────────────────────────────────────────────────
 // v1/v2 keep the ids, tokens and names the vendor + family pages
 // already resolve against. v3 is the reroute target — beat 3 needs
@@ -155,11 +172,14 @@ export function buildPatients(): SeededPatient[] {
   const r = rng(SEED);
   return NAMES.map((label, i) => {
     const dx = weighted(r, DX_MIX);
+    const [rxLow, rxHigh] = RX_MONTHLY_RANGE[dx];
+    const rxSpendMonthly = Math.round(rxLow + r() * (rxHigh - rxLow));
     const id = `p${i + 1}`;
     return {
       id,
       label,
       dx,
+      rxSpendMonthly,
       address: ADDRESSES[i],
       // p1 is the live discharge, p4 is the deceased pickup — both
       // have family pages in the demo click-path.

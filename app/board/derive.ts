@@ -108,6 +108,23 @@ export function dmeSpendFor(orders: Order[]): number {
   return orders.reduce((s, o) => s + orderDmeSpend(o), 0);
 }
 
+/** Current monthly DME run-rate: daily rate × 30 for orders actively
+ *  renting right now (delivered, not yet picked up). A monthly figure,
+ *  deliberately not cumulative like dmeSpendFor — so it's comparable to
+ *  Rx's monthly spend instead of double-counting against it. */
+export function dmeMonthlyRunRate(orders: Order[]): number {
+  return orders
+    .filter((o) => o.timestamps.delivered && !o.pickup?.completedAt)
+    .reduce((s, o) => s + orderDailyRate(o) * 30, 0);
+}
+
+/** Total synthetic monthly Rx spend across the given patients — the eRx
+ *  side of "DME spend alongside medication spend, not in a separate
+ *  silo" (bounty Required Features, hospice side). */
+export function rxSpendMonthlyTotal(patients: Patient[]): number {
+  return patients.reduce((s, p) => s + (p.rxSpendMonthly ?? 0), 0);
+}
+
 /** Days an order's equipment has sat idle past its pickup SLA (still accruing
  *  rent), billed in whole days — a rental doesn't stop accruing because
  *  pickup was only two hours late. Ceiling-rounded to match the money

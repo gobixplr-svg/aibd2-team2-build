@@ -96,6 +96,7 @@ export interface Patient {
   id: string;
   label: string;
   dx?: string; // diagnosis category (CMS mix) — why this equipment, not a clinical field
+  rxSpendMonthly?: number; // synthetic eRx monthly spend — cost-of-care-alongside-DME, required by the bounty's own Required Features list
   familyToken?: string; // magic-link token for /f/[token]
   status: "active" | "discharged" | "deceased";
 }
