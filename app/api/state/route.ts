@@ -175,10 +175,12 @@ export async function GET(req: Request) {
         totalUsd: Number(costUsd.toFixed(4)),
         tokens,
         calls: ledger.length,
-        // Order-scoped only. A batched triage of four orders counts as
-        // four; a family message counts as neither.
-        ordersCovered: orderUnits,
-        perOrderUsd: orderUnits
+        // NOT cost per order — cost per order *touch*. One order that gets
+        // an intake extraction, a triage pass and a draft counts as three.
+        // Named for what it measures so nobody quotes it as the headline:
+        // use byKind for that (triage ~$0.004/order, intake ~$0.006/referral).
+        orderTouches: orderUnits,
+        perOrderTouchUsd: orderUnits
           ? Number((orderUsd / orderUnits).toFixed(5))
           : 0,
         perMessageUsd: msgLedger.length
