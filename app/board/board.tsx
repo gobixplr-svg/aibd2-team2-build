@@ -11,7 +11,7 @@ import { postJson, useWorld } from "@/lib/use-world";
 import { ApprovalsTray } from "./approvals-tray";
 import { DeceasedConfirm } from "./deceased-confirm";
 import type { InboxItem } from "./derive";
-import { EmrTab } from "./emr-tab";
+import { EmrTab, type EmrLogEntry } from "./emr-tab";
 import { EquipmentPage } from "./equipment-page";
 import { FamilyViewTab } from "./family-view-tab";
 import { OrderFormModal } from "./order-form";
@@ -69,7 +69,7 @@ function toPortalInbox(items: EngineInboxItem[]): InboxItem[] {
 export function HospicePortal() {
   const { state, error, refresh } = useWorld<WorldState>("?scope=hospice");
   const [tab, setTab] = useState<TabKey>("equipment");
-  const [emrLog, setEmrLog] = useState<string[]>([]);
+  const [emrLog, setEmrLog] = useState<EmrLogEntry[]>([]);
   const [newOrderFor, setNewOrderFor] = useState<string | undefined>(undefined);
   const [newOrderOpen, setNewOrderOpen] = useState(false);
   const [deceasedFor, setDeceasedFor] = useState<string | null>(null);
@@ -164,7 +164,16 @@ export function HospicePortal() {
           : "PID-30 (death ind): N";
     setEmrLog((l) =>
       [
-        `${new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" })} ${adt} → ${segments} · ${patient.label}`,
+        {
+          time: new Date().toLocaleTimeString([], {
+            hour: "numeric",
+            minute: "2-digit",
+            second: "2-digit",
+          }),
+          adt,
+          detail: segments,
+          patientLabel: patient.label,
+        },
         ...l,
       ].slice(0, 8),
     );
