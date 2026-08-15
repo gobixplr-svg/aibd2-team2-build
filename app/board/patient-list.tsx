@@ -54,8 +54,11 @@ function buildTimeline(orders: Order[], vendorName: (id: string) => string): Tim
 // rent, cost per day — instead of turn 2's Open DME / Rx spend columns.
 // Same expand-in-place pattern as 2b. Turn 4 (4a/4b): diagnosis tag and
 // risk rollup replace the plain status column, the family tracker link
-// moves onto the collapsed row, and the Rx-spend line is gone for good —
-// DME only, no meds-adjacent data even as context.
+// moves onto the collapsed row. Turn 4 also deleted Rx spend entirely,
+// on the (wrong) assumption this app should stay DME-only — the bounty's
+// own Required Features list states "DME spend alongside medication
+// spend, not in a separate silo" verbatim, so it's back here and in
+// Analytics, seeded per patient rather than a hardcoded partial table.
 export function PatientList({
   patients,
   orders,
@@ -127,7 +130,7 @@ export function PatientList({
         <div>Patient</div>
         <div>Needs attention</div>
         <div>Assets</div>
-        <div>DME spend</div>
+        <div>DME + Rx spend</div>
         <div>Days</div>
         <div>Family</div>
         <div />
@@ -185,11 +188,18 @@ export function PatientList({
               </span>
               <span className="text-[11px]">{openDmeLabel(patientOrders)}</span>
               <span className="text-[11px]">
-                ${spend.toLocaleString()}
-                {avgSpend > 0 && (
-                  <span className="ml-1 text-[9px] text-ink-soft">
-                    {vsAvgPct >= 0 ? "+" : ""}
-                    {vsAvgPct}%
+                <span>
+                  ${spend.toLocaleString()} DME
+                  {avgSpend > 0 && (
+                    <span className="ml-1 text-[9px] text-ink-soft">
+                      {vsAvgPct >= 0 ? "+" : ""}
+                      {vsAvgPct}%
+                    </span>
+                  )}
+                </span>
+                {p.rxSpendMonthly !== undefined && (
+                  <span className="block text-[9px] text-ink-soft">
+                    ${p.rxSpendMonthly.toLocaleString()}/mo Rx
                   </span>
                 )}
               </span>
@@ -292,6 +302,12 @@ export function PatientList({
                     </div>
                     <div className="rounded-md border border-line bg-surface p-3 text-[11px] leading-loose text-ink">
                       <Row label="DME to date" value={`$${spend.toLocaleString()}`} strong />
+                      <Row
+                        label="Rx spend (mo.)"
+                        value={
+                          p.rxSpendMonthly !== undefined ? `$${p.rxSpendMonthly.toLocaleString()}` : "—"
+                        }
+                      />
                       <Row label="Per day" value={`$${currentDailyRate.toFixed(0)}`} />
                       <Row
                         label="Vs census avg"

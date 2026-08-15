@@ -4,12 +4,14 @@ import { useMemo, useState } from "react";
 import type { Order, Patient, Vendor } from "@/lib/contracts";
 import {
   daysOnRent,
+  dmeMonthlyRunRate,
   dmeSpendFor,
   lengthOfUseRows,
   ordersToCsv,
   patientDaysOnCensus,
   postPickupIdleCost,
   postPickupIdleDays,
+  rxSpendMonthlyTotal,
   spendByCategory,
   topEquipment,
   vendorPerformance,
@@ -38,6 +40,15 @@ export function AnalyticsTab({
   const totalSpend = dmeSpendFor(scoped);
   const totalPatientDays = patients.reduce((s, p) => s + patientDaysOnCensus(p, scoped), 0);
   const costPerPatientDay = totalPatientDays > 0 ? totalSpend / totalPatientDays : null;
+
+  // Cost-of-care visibility (bounty Required Features, hospice side):
+  // "DME spend alongside medication spend, not in a separate silo."
+  // Rx is scoped to patients who have an order in the current vendor
+  // filter, so the comparison stays honest when a vendor is selected.
+  const scopedPatientIds = new Set(scoped.map((o) => o.patientId));
+  const scopedPatients = patients.filter((p) => scopedPatientIds.has(p.id));
+  const dmeMonthly = dmeMonthlyRunRate(scoped);
+  const rxMonthly = rxSpendMonthlyTotal(scopedPatients);
 
   const delivered = scoped.filter((o) => o.timestamps.delivered);
   const avgDaysOnDme =
@@ -94,8 +105,25 @@ export function AnalyticsTab({
         </button>
       </div>
 
-      <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
-        <StatTile label="DME spend to date" value={`$${totalSpend.toLocaleString()}`} />
+      <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-3">
+        <StatTile
+          label="DME spend to date"
+          value={`$${totalSpend.toLocaleString()}`}
+          sub="cumulative, all orders"
+        />
+        <StatTile
+          label="Rx spend (monthly)"
+          value={`$${Math.round(rxMonthly).toLocaleString()}`}
+          sub={`census ${scopedPatients.length} · synthetic eRx feed`}
+        />
+        <StatTile
+          label="Total cost of care (monthly)"
+          value={`$${Math.round(dmeMonthly + rxMonthly).toLocaleString()}`}
+          sub={`$${Math.round(dmeMonthly).toLocaleString()} DME · $${Math.round(rxMonthly).toLocaleString()} Rx`}
+        />
+      </div>
+
+      <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-3">
         <StatTile
           label="Cost per patient-day"
           value={costPerPatientDay !== null ? `$${costPerPatientDay.toFixed(2)}` : "—"}
