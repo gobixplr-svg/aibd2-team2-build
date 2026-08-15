@@ -123,6 +123,14 @@ export function HospicePortal() {
     refresh();
   }
 
+  async function requestPickup(orderId: string) {
+    await postJson(`/api/orders/${orderId}/transition`, {
+      to: "pickup_triggered",
+      pickupBy: "nurse",
+    });
+    refresh();
+  }
+
   async function approveInbox(id: string, draft?: string) {
     await postJson(`/api/inbox/${id}`, { action: "approve", draft });
     refresh();
@@ -224,9 +232,11 @@ export function HospicePortal() {
           <EmrTab
             patients={patients}
             orders={orders}
+            vendors={vendors}
             vendorName={vendorName}
             log={emrLog}
             onFire={fireEmrEvent}
+            onRequestPickup={requestPickup}
           />
         )}
         {tab === "family" && <FamilyViewTab patients={patients} />}
