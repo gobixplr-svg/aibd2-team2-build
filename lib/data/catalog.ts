@@ -95,15 +95,3 @@ export function categoryOf(hcpcs: string): string {
   if (hcpcs === "E0143") return "Walker";
   return "Other";
 }
-
-/** Synthetic per-patient monthly medication spend (the eRx side of the
- *  DME-next-to-meds cost view). Keyed by patientId; real version reads
- *  BetterRX eRx data. */
-export const RX_SPEND: Record<string, number> = {
-  p1: 1120,
-  p2: 860,
-  p3: 2004,
-  p4: 5270,
-  p5: 1940,
-  p6: 640,
-};

@@ -24,10 +24,12 @@ export function AnalyticsTab({
   orders,
   patients,
   vendors,
+  now,
 }: {
   orders: Order[];
   patients: Patient[];
   vendors: Vendor[];
+  now: number;
 }) {
   const [vendorFilter, setVendorFilter] = useState<string>("All");
 
@@ -43,8 +45,11 @@ export function AnalyticsTab({
       ? delivered.reduce((s, o) => s + daysOnRent(o), 0) / delivered.length
       : 0;
 
-  const idleDays = postPickupIdleDays(scoped);
-  const idleCost = postPickupIdleCost(scoped);
+  // now is engine time (state.now from /api/state) — must match what the
+  // money counter in the board header and /api/state used, or this and
+  // that number can disagree the moment the demo clock runs fast.
+  const idleDays = postPickupIdleDays(scoped, now);
+  const idleCost = postPickupIdleCost(scoped, now);
 
   const categories = useMemo(() => spendByCategory(scoped), [scoped]);
   const maxCategory = Math.max(1, ...categories.map((c) => c.amount));

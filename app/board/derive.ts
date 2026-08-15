@@ -108,12 +108,16 @@ export function dmeSpendFor(orders: Order[]): number {
   return orders.reduce((s, o) => s + orderDmeSpend(o), 0);
 }
 
-/** Days an order's equipment has sat idle past its pickup SLA (still accruing rent). */
+/** Days an order's equipment has sat idle past its pickup SLA (still accruing
+ *  rent), billed in whole days — a rental doesn't stop accruing because
+ *  pickup was only two hours late. Ceiling-rounded to match the money
+ *  counter (api/state/route.ts), the only other place this gets computed. */
 export function idlePickupDays(order: Order, now: number = Date.now()): number {
   if (!order.pickup) return 0;
   const end = order.pickup.completedAt ? new Date(order.pickup.completedAt).getTime() : now;
   const due = new Date(order.pickup.dueAt).getTime();
-  return Math.max((end - due) / 86_400_000, 0);
+  if (end <= due) return 0;
+  return Math.ceil((end - due) / 86_400_000);
 }
 
 // ── Analytics (Equipment › Analytics, wireframe turn 3, 3c) ──────────
@@ -217,14 +221,21 @@ export function vendorPerformance(orders: Order[], vendors: Vendor[]): VendorPer
 }
 
 /** Total rental days still accruing past pickup SLA, across all orders — the
- *  money the 24h clock is there to recover. */
-export function postPickupIdleDays(orders: Order[]): number {
-  return orders.reduce((s, o) => s + idlePickupDays(o), 0);
+ *  money the 24h clock is there to recover. `now` should be engine time
+ *  (state.now from /api/state), not wall time — the demo clock can run
+ *  faster than real time or jump hours, and this must agree with it. */
+export function postPickupIdleDays(orders: Order[], now: number = Date.now()): number {
+  return orders.reduce((s, o) => s + idlePickupDays(o, now), 0);
 }
 
-export function postPickupIdleCost(orders: Order[]): number {
+/** The money counter. This is THE pickup-overdue-cost figure — the board
+ *  header, Analytics, and /api/state's `money.pickupOverdueUsd` all read
+ *  off this one function so they can't drift apart on stage the way the
+ *  client (wall-clock, fractional days) and server (engine time, whole
+ *  days) versions of this used to. */
+export function postPickupIdleCost(orders: Order[], now: number = Date.now()): number {
   return Math.round(
-    orders.reduce((s, o) => s + idlePickupDays(o) * orderDailyRate(o), 0),
+    orders.reduce((s, o) => s + idlePickupDays(o, now) * orderDailyRate(o), 0),
   );
 }
 
