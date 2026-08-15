@@ -409,23 +409,24 @@ export function monthlyDmeCost(orders: Order[], now: number): MonthlyCostRow[] {
 }
 
 /** Pivot monthlyDmeCost rows into month × vendor totals, scoped to
- *  months/vendors/category the caller wants — the shape the "spend by
- *  vendor, month over month" chart actually renders. category="All"
- *  sums every category; a specific category name scopes to just it, so
- *  the same chart answers both "compare vendors overall" and "compare
- *  vendors for this one equipment type." */
+ *  months/vendors/equipment the caller wants — the shape the "spend by
+ *  vendor, month over month" chart actually renders. hcpcsIds=null sums
+ *  every item; a specific set scopes to just those catalog items (one
+ *  code or several, spanning one category or many), so the same chart
+ *  answers "compare vendors overall" and "compare vendors for just this
+ *  equipment" without needing two different functions. */
 export function monthlyByVendor(
   rows: MonthlyCostRow[],
   months: MonthPoint[],
   vendorIds: string[],
-  category: string,
+  hcpcsIds: Set<string> | null,
 ): { month: MonthPoint; byVendor: Record<string, number> }[] {
   const monthSet = new Set(months.map((m) => m.key));
   const vendorSet = new Set(vendorIds);
   const totals = new Map<string, Record<string, number>>();
   for (const r of rows) {
     if (!monthSet.has(r.month) || !vendorSet.has(r.vendorId)) continue;
-    if (category !== "All" && r.category !== category) continue;
+    if (hcpcsIds && !hcpcsIds.has(r.hcpcs)) continue;
     const row = totals.get(r.month) ?? {};
     row[r.vendorId] = (row[r.vendorId] ?? 0) + r.amount;
     totals.set(r.month, row);
