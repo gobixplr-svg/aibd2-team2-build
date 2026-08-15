@@ -2,7 +2,10 @@ name: Hermes heartbeat
 
 on:
   schedule:
-    - cron: "*/5 * * * *"
+    # 2-57/5 not */5: GitHub cron on high-contention minutes (:00, :05, …)
+    # is heavily delayed or skipped for new workflows; off-minutes fire
+    # far more reliably. Zero scheduled runs in the first hour on */5.
+    - cron: "2-57/5 * * * *"
   workflow_dispatch:
 
 concurrency:
