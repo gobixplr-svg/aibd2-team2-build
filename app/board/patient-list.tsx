@@ -116,7 +116,7 @@ export function PatientList({
     .sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
 
   const spendByPatient = new Map(
-    patients.map((p) => [p.id, dmeSpendFor(orders.filter((o) => o.patientId === p.id))]),
+    patients.map((p) => [p.id, dmeSpendFor(orders.filter((o) => o.patientId === p.id), now)]),
   );
   const withSpend = Array.from(spendByPatient.values()).filter((v) => v > 0);
   const avgSpend = withSpend.length
@@ -168,7 +168,7 @@ export function PatientList({
         const patientOrders = orders.filter((o) => o.patientId === p.id);
         const isOpen = expanded === p.id;
         const spend = spendByPatient.get(p.id) ?? 0;
-        const days = patientOrders.reduce((s, o) => s + daysOnRent(o), 0);
+        const days = patientOrders.reduce((s, o) => s + daysOnRent(o, now), 0);
         const currentDailyRate = patientOrders
           .filter((o) => o.timestamps.delivered && !o.pickup?.completedAt)
           .reduce((s, o) => s + orderDailyRate(o), 0);
@@ -277,7 +277,7 @@ export function PatientList({
                                 <span className="font-mono text-[10px] text-muted">{it.hcpcs}</span>
                                 <span className="flex-1 text-ink">{it.name}</span>
                                 <span className="text-[9px] text-muted">
-                                  {Math.round(daysOnRent(o))} d · ${Math.round(orderDailyRate(o) * 30)}/mo
+                                  {Math.round(daysOnRent(o, now))} d · ${Math.round(orderDailyRate(o) * 30)}/mo
                                 </span>
                                 <span
                                   className={`rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${pillFor(o).className}`}

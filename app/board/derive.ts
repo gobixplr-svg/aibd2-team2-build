@@ -113,8 +113,8 @@ export function orderDmeSpend(order: Order, now: number = Date.now()): number {
   return Math.round(orderDailyRate(order) * daysOnRent(order, now));
 }
 
-export function dmeSpendFor(orders: Order[]): number {
-  return orders.reduce((s, o) => s + orderDmeSpend(o), 0);
+export function dmeSpendFor(orders: Order[], now: number = Date.now()): number {
+  return orders.reduce((s, o) => s + orderDmeSpend(o, now), 0);
 }
 
 /** Current monthly DME run-rate: daily rate × 30 for orders actively
@@ -161,7 +161,7 @@ export interface EquipmentRankRow {
 }
 
 /** Most-ordered equipment: order count + spend-to-date per catalog code. */
-export function topEquipment(orders: Order[]): EquipmentRankRow[] {
+export function topEquipment(orders: Order[], now: number = Date.now()): EquipmentRankRow[] {
   const rows = new Map<string, EquipmentRankRow>();
   for (const o of orders) {
     for (const it of o.items) {
@@ -172,7 +172,7 @@ export function topEquipment(orders: Order[]): EquipmentRankRow[] {
         spend: 0,
       };
       row.count += 1;
-      row.spend += orderDmeSpend(o) / o.items.length;
+      row.spend += orderDmeSpend(o, now) / o.items.length;
       rows.set(it.hcpcs, row);
     }
   }
@@ -181,10 +181,13 @@ export function topEquipment(orders: Order[]): EquipmentRankRow[] {
 
 /** Spend-to-date bucketed by equipment category — the honest stand-in
  *  for a monthly trend chart when there's no multi-month history yet. */
-export function spendByCategory(orders: Order[]): { category: string; amount: number }[] {
+export function spendByCategory(
+  orders: Order[],
+  now: number = Date.now(),
+): { category: string; amount: number }[] {
   const totals = new Map<string, number>();
   for (const o of orders) {
-    const perItem = orderDmeSpend(o) / Math.max(o.items.length, 1);
+    const perItem = orderDmeSpend(o, now) / Math.max(o.items.length, 1);
     for (const it of o.items) {
       const cat = categoryOf(it.hcpcs);
       totals.set(cat, (totals.get(cat) ?? 0) + perItem);
@@ -204,14 +207,14 @@ export interface LengthOfUseRow {
 }
 
 /** Avg days placed + idle (post-pickup-SLA) days per equipment code. */
-export function lengthOfUseRows(orders: Order[]): LengthOfUseRow[] {
+export function lengthOfUseRows(orders: Order[], now: number = Date.now()): LengthOfUseRow[] {
   const byCode = new Map<string, { days: number[]; idle: number }>();
   for (const o of orders) {
     if (!o.timestamps.delivered) continue;
     for (const it of o.items) {
       const bucket = byCode.get(it.hcpcs) ?? { days: [], idle: 0 };
-      bucket.days.push(daysOnRent(o));
-      bucket.idle += idlePickupDays(o);
+      bucket.days.push(daysOnRent(o, now));
+      bucket.idle += idlePickupDays(o, now);
       byCode.set(it.hcpcs, bucket);
     }
   }
