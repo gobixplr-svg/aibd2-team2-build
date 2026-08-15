@@ -59,6 +59,7 @@ function toPortalInbox(items: EngineInboxItem[]): InboxItem[] {
       title: i.title,
       detail: i.reasons.length ? `${i.detail} — ${i.reasons.join("; ")}` : i.detail,
       draft: i.draft,
+      patientId: i.patientId,
       needsApproval: i.status === "pending",
       resolved:
         i.status === "approved" || i.status === "auto_executed"
@@ -229,6 +230,9 @@ export function HospicePortal() {
             vendors={vendors}
             onHand={onHand}
             now={now}
+            inbox={inbox}
+            onApproveDraft={approveInbox}
+            onDismissDraft={dismissInbox}
             vendorName={vendorName}
             onNewOrder={(patientId) => {
               setNewOrderFor(patientId);

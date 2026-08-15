@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { OnHandAsset, Order, Patient, Vendor } from "@/lib/contracts";
 import { AnalyticsTab } from "./analytics-tab";
+import type { InboxItem } from "./derive";
 import { EquipmentList } from "./equipment-list";
 import { NoteModal } from "./note-modal";
 import { OnHandList } from "./on-hand-list";
@@ -27,6 +28,9 @@ export function EquipmentPage({
   vendors,
   onHand,
   now,
+  inbox,
+  onApproveDraft,
+  onDismissDraft,
   vendorName,
   onNewOrder,
   onAddNote,
@@ -40,6 +44,9 @@ export function EquipmentPage({
   vendors: Vendor[];
   onHand: OnHandAsset[];
   now: number;
+  inbox: InboxItem[];
+  onApproveDraft: (id: string, draft?: string) => void;
+  onDismissDraft: (id: string) => void;
   vendorName: (id: string) => string;
   onNewOrder: (patientId?: string) => void;
   onAddNote: (orderId: string, note: string) => void;
@@ -95,11 +102,14 @@ export function EquipmentPage({
         {subTab === "list" && (
           <EquipmentList
             orders={orders}
+            inbox={inbox}
             vendorName={vendorName}
             onNewOrder={() => onNewOrder()}
             onAddNote={setNoteFor}
             onMessageFamily={onMessageFamily}
             onRequestReroute={onRequestReroute}
+            onApproveDraft={onApproveDraft}
+            onDismissDraft={onDismissDraft}
           />
         )}
         {subTab === "by-patient" && (
@@ -107,11 +117,14 @@ export function EquipmentPage({
             patients={patients}
             orders={orders}
             now={now}
+            inbox={inbox}
             vendorName={vendorName}
             onNewOrder={onNewOrder}
             onRecordPassing={onRecordPassing}
             onAddNote={setNoteFor}
             onMessageFamily={onMessageFamily}
+            onApproveDraft={onApproveDraft}
+            onDismissDraft={onDismissDraft}
           />
         )}
         {subTab === "on-hand" && (

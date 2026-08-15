@@ -315,6 +315,9 @@ export interface InboxItem {
   // Claude-drafted message body (family messages). The card renders it
   // editable; approving sends the human's edited version.
   draft?: string;
+  // Lets detail views show a pending draft inline next to its patient,
+  // not only in the header tray.
+  patientId?: string;
 }
 
 export const INBOX_KIND_LABEL: Record<InboxKind, string> = {
