@@ -42,6 +42,83 @@ export const PILL_CLASS: Record<OrderState, string> = {
   pickup_delayed: "bg-critical text-white",
 };
 
+// ── Audit-trail formatting ────────────────────────────────────────
+// The risk features ARE the anti-black-box story ("the model sees only
+// these stored fields"), but raw camelCase keys and 15-decimal floats
+// read as debug output to an RN. Each row gets a human label + formatted
+// value; the raw field name stays visible as mono subtext so the
+// "real stored fields" claim survives inspection.
+
+export interface AuditRow {
+  key: string;
+  label: string;
+  value: string;
+}
+
+const pct = (v: number) => `${Math.round(v * 100)}%`;
+const hrs = (v: number) => `${v.toFixed(1)} h`;
+const yesNo = (v: unknown) => (v ? "Yes" : "No");
+
+const FEATURE_SPEC: [string, string, (v: never) => string][] = [
+  ["urgency", "Order urgency", (v: string) => (v === "stat" ? "STAT" : "Routine")],
+  ["isOxygen", "Oxygen equipment", yesNo],
+  ["itemCount", "Items on order", (v: number) => String(v)],
+  [
+    "hoursToDeadline",
+    "Time to deadline",
+    (v: number) => (v < 0 ? `passed ${hrs(-v)} ago` : `${hrs(v)} left`),
+  ],
+  [
+    "etaDeltaMin",
+    "ETA vs deadline",
+    (v: number | null) =>
+      v === null ? "no ETA committed" : v > 0 ? `${Math.round(v)} min late` : `${Math.round(-v)} min early`,
+  ],
+  ["dispatchSilenceMin", "Dispatch silence", (v: number) => `${Math.round(v)} min`],
+  [
+    "pickupAgeHours",
+    "Pickup triggered",
+    (v: number | null) => (v === null ? "not triggered" : `${hrs(v)} ago`),
+  ],
+  [
+    "pickupOverdueHours",
+    "Past pickup SLA",
+    (v: number) => (v > 0 ? `${hrs(v)} over` : "within SLA"),
+  ],
+  ["slaWindowHours", "SLA window", (v: number) => `${v} h`],
+  ["elapsedFrac", "Window elapsed", pct],
+  ["isUrgentPickup", "Urgent pickup", yesNo],
+  ["pickupAcknowledged", "Dispatcher acknowledged", yesNo],
+  ["pickupWindowCommitted", "Window committed", yesNo],
+  ["vendorConnected", "Vendor connected", yesNo],
+  ["vendorOnTimeRate", "Vendor on-time rate", pct],
+  ["vendorStatOnTimeRate", "Vendor on-time (STAT)", pct],
+  ["vendorAvgPickupHours", "Vendor avg pickup", hrs],
+  [
+    "pickupPredictedBreachHours",
+    "Predicted SLA breach",
+    (v: number) => (v > 0 ? `${hrs(v)} late` : "none predicted"),
+  ],
+];
+
+export function auditRows(features: Record<string, number | string | boolean | null>): AuditRow[] {
+  const rows: AuditRow[] = [];
+  const seen = new Set<string>(["orderId"]); // shown in the row header already
+  for (const [key, label, fmt] of FEATURE_SPEC) {
+    if (!(key in features)) continue;
+    seen.add(key);
+    rows.push({ key, label, value: (fmt as (v: unknown) => string)(features[key]) });
+  }
+  // Unknown fields still show (it's an audit trail) — prettified, rounded.
+  for (const [key, v] of Object.entries(features)) {
+    if (seen.has(key)) continue;
+    const label = key.replace(/([A-Z])/g, " $1").replace(/^./, (c) => c.toUpperCase());
+    const value = typeof v === "number" ? String(Math.round(v * 100) / 100) : String(v);
+    rows.push({ key, label, value });
+  }
+  return rows;
+}
+
 /** Status pill, completion-aware: pickup completion never writes
  *  order.state (it lives on order.pickup.completedAt), so derive the
  *  label here instead of leaving "Pickup due" up after the truck left. */
