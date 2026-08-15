@@ -3,13 +3,12 @@
 import { Fragment, useState } from "react";
 import type { Order, OrderState, Patient, Vendor } from "@/lib/contracts";
 
-// DME Tracker — patterned after Qualis, the leading third-party DME
-// integration for Homecare Homebase (HCHB has no native DME module of
-// its own; hospices bolt one on, and Qualis is the market leader).
-// Synthetic simulation only — not affiliated with or endorsed by HCHB
-// or Qualis. Colors below are HCHB's own (see the style-guide research),
-// scoped to this panel only so it reads as "the other system's chrome"
-// embedded in ours, not a restyle of the whole app.
+// DME Tracker — patterned after the third-party DME integrations
+// hospices bolt onto Homecare Homebase (HCHB has no native DME module
+// of its own). Synthetic simulation only — not affiliated with or
+// endorsed by HCHB. Colors below are HCHB's own (see the style-guide
+// research), scoped to this panel only so it reads as "the other
+// system's chrome" embedded in ours, not a restyle of the whole app.
 const HCHB = {
   navy: "#0d1f3c",
   blue: "#2e6fe0",
@@ -21,12 +20,12 @@ const HCHB = {
   good: "#1b8a5a",
 };
 
-// Qualis's own documented lifecycle: created, submitted, received,
-// modified, accepted, delivered, picked up. Our OrderState is a
-// simpler machine, so this maps onto it rather than reproducing all
-// seven stages 1:1 — "received"/"modified" don't have a clean analog
-// once a vendor has actually committed to an order.
-const QUALIS_STATUS: Record<OrderState, { label: string; tone: keyof typeof TONE }> = {
+// Third-party DME trackers document a longer lifecycle: created,
+// submitted, received, modified, accepted, delivered, picked up. Our
+// OrderState is a simpler machine, so this maps onto it rather than
+// reproducing all seven stages 1:1 — "received"/"modified" don't have
+// a clean analog once a vendor has actually committed to an order.
+const DME_TRACKER_STATUS: Record<OrderState, { label: string; tone: keyof typeof TONE }> = {
   ordered: { label: "Submitted", tone: "neutral" },
   dispatched: { label: "Accepted", tone: "progress" },
   in_transit: { label: "Accepted · en route", tone: "progress" },
@@ -51,16 +50,16 @@ const ADT_EVENTS = [
   { type: "deceased", label: "Mark deceased", to: "deceased" as const },
 ];
 
-// Real Qualis vendors split into two tiers: ones that log into the portal
-// to confirm orders and post status themselves, and ones an office still
-// has to phone or email — "the quality of your DME tracking is only as
-// good as your vendors' participation." We already model this exact split
-// as Vendor.connected; it just wasn't surfaced in this tracker before.
-// The Qualis panel's own compose modal, styled in HCHB chrome — not
-// note-modal.tsx, which is the Handoff-branded shared one used by the
-// other portal pages. Keeping this local is what keeps the "embedded
-// third-party system" illusion intact through the one write action
-// this panel has.
+// Real third-party DME vendors split into two tiers: ones that log into
+// the portal to confirm orders and post status themselves, and ones an
+// office still has to phone or email — "the quality of your DME tracking
+// is only as good as your vendors' participation." We already model
+// this exact split as Vendor.connected; it just wasn't surfaced in this
+// tracker before. This panel gets its own compose modal, styled in HCHB
+// chrome — not note-modal.tsx, which is the Handoff-branded shared one
+// used by the other portal pages. Keeping this local is what keeps the
+// "embedded third-party system" illusion intact through the one write
+// action this panel has.
 function ServiceIssueModal({
   title,
   initialNote,
@@ -206,15 +205,9 @@ export function EmrTab({
         </div>
 
         <div className="p-5" style={{ background: HCHB.paper }}>
-          <p className="mb-1 max-w-2xl text-xs leading-relaxed" style={{ color: HCHB.navy }}>
-            Patterned after <strong>Qualis</strong>, the leading third-party DME management
-            integration for Homecare Homebase — HCHB has no native DME module, so hospices
-            running on it bolt one on. Not affiliated with or endorsed by HCHB or Qualis.
-          </p>
-          <p className="mb-4 max-w-2xl text-[11px]" style={{ color: "#3a4a63" }}>
-            Order status below follows Qualis&apos;s documented lifecycle (created → submitted
-            → received → modified → accepted → delivered → picked up), mapped onto our order
-            states.
+          <p className="mb-4 max-w-2xl text-[11px] leading-relaxed" style={{ color: HCHB.navy }}>
+            A third-party DME tracker hospices bolt onto Homecare Homebase. Synthetic simulation
+            only — not affiliated with or endorsed by HCHB.
           </p>
 
           <div className="overflow-hidden rounded-lg border bg-white" style={{ borderColor: HCHB.powder }}>
@@ -232,7 +225,7 @@ export function EmrTab({
               <tbody>
                 {orders.map((o, i) => {
                   const isOpen = expanded === o.id;
-                  const status = QUALIS_STATUS[o.state];
+                  const status = DME_TRACKER_STATUS[o.state];
                   return (
                     <Fragment key={o.id}>
                       <tr
@@ -378,9 +371,8 @@ export function EmrTab({
           Integration log
         </div>
         <p className="mb-3 text-[10.5px] leading-relaxed text-muted">
-          Every DME status change gets a timestamped entry — the same principle Qualis
-          documents for its own tracker, where out-of-stock swaps, reschedules, and status
-          updates are all logged with a note.
+          Every DME status change gets a timestamped entry — out-of-stock swaps, reschedules,
+          and status updates are all logged with a note.
         </p>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>

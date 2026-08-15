@@ -207,7 +207,7 @@ export function HospicePortal() {
   return (
     <div className="flex flex-col min-h-dvh w-full">
       <header className="bg-navy text-white border-t-[3px] border-brand">
-        <div className="mx-auto flex w-full max-w-7xl items-center gap-6 px-4">
+        <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center gap-x-6 gap-y-1 px-4">
           {/* The logo is the way home: one click back to the RN's ranked
               action list from anywhere. */}
           <button
@@ -220,7 +220,7 @@ export function HospicePortal() {
               Better<span className="text-brand">RX</span>
             </span>
           </button>
-          <nav className="flex gap-0.5 self-stretch text-xs">
+          <nav className="hidden gap-0.5 self-stretch text-xs sm:flex">
             {TABS.map((t) => (
               <button
                 key={t.key}
@@ -236,7 +236,21 @@ export function HospicePortal() {
               </button>
             ))}
           </nav>
-          <div className="ml-auto flex items-center gap-2.5 py-3.5 text-[11px] text-white/70">
+          {/* Below sm, the button row would overflow — a native select is a
+              better phone control anyway, and costs one element. Same
+              handler, same tab state. */}
+          <select
+            value={tab}
+            onChange={(e) => setTab(e.target.value as TabKey)}
+            className="order-last w-full rounded-md border border-white/30 bg-transparent py-2 px-3 text-xs text-white sm:hidden"
+          >
+            {TABS.map((t) => (
+              <option key={t.key} value={t.key} className="text-ink">
+                {t.label}
+              </option>
+            ))}
+          </select>
+          <div className="ml-auto flex flex-wrap items-center gap-2.5 py-3.5 text-[11px] text-white/70">
             {/* The world's clock — every deadline on the board is relative
                 to THIS time, not the wall clock. The demo turns it faster;
                 showing it is what makes "due by 4:30" legible at 2:15 on
@@ -265,7 +279,7 @@ export function HospicePortal() {
               </Pulse>
             )}
             <ApprovalsTray inbox={inbox} onApprove={approveInbox} onDismiss={dismissInbox} />
-            <span>M. Ruiz, RN · case manager</span>
+            <span className="hidden sm:inline">M. Ruiz, RN · case manager</span>
             <span className="inline-block h-[26px] w-[26px] rounded-full bg-secondary" />
           </div>
         </div>
