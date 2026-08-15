@@ -22,7 +22,7 @@ export default function Home() {
             href="/board"
             title="Hospice portal"
             who="admissions nurse · case manager · DON"
-            note="live — Patients / Equipment / EMR simulator tabs"
+            note="live — Equipment (list/patient/analytics) / EMR simulator / Family view"
           />
           <Surface
             href="/v/demo-vendor"

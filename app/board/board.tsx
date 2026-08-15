@@ -8,23 +8,24 @@ import type {
   Vendor,
 } from "@/lib/contracts";
 import { postJson, useWorld } from "@/lib/use-world";
+import { ApprovalsTray } from "./approvals-tray";
 import { DeceasedConfirm } from "./deceased-confirm";
 import type { InboxItem } from "./derive";
 import { EmrTab } from "./emr-tab";
-import { EquipmentTab } from "./equipment-tab";
+import { EquipmentPage } from "./equipment-page";
+import { FamilyViewTab } from "./family-view-tab";
 import { OrderFormModal } from "./order-form";
-import { PatientsTab } from "./patients-tab";
 
-// Garrett's tabbed portal (wireframe turn 2) on the /api/state data
-// layer: one page, three tabs, all state server-side. The tabs are
-// untouched — this container polls the world, adapts the engine's
-// inbox shape to the portal's display shape, and turns every local
-// mutation into a POST + refresh.
+// Wireframe turn 3: top chrome drops Patients in favor of Equipment
+// (now its own sub-tabbed page — Equipment / By patient / Analytics),
+// EMR simulator, and Family view. Approvals move out of any one tab
+// into a header tray that applies across all three Equipment sub-tabs.
+// State layer (useWorld/postJson) is unchanged from the /api/state port.
 
 const TABS = [
-  { key: "patients", label: "Patients" },
   { key: "equipment", label: "Equipment" },
   { key: "emr", label: "EMR simulator" },
+  { key: "family", label: "Family view" },
 ] as const;
 
 type TabKey = (typeof TABS)[number]["key"];
@@ -67,7 +68,7 @@ function toPortalInbox(items: EngineInboxItem[]): InboxItem[] {
 
 export function HospicePortal() {
   const { state, error, refresh } = useWorld<WorldState>("?scope=hospice");
-  const [tab, setTab] = useState<TabKey>("patients");
+  const [tab, setTab] = useState<TabKey>("equipment");
   const [emrLog, setEmrLog] = useState<string[]>([]);
   const [newOrderFor, setNewOrderFor] = useState<string | undefined>(undefined);
   const [newOrderOpen, setNewOrderOpen] = useState(false);
@@ -104,7 +105,6 @@ export function HospicePortal() {
       title: `Draft message to ${patient.label}'s family`,
       detail: `Claude-drafted update ready to review for ${patient.label} — a person sends it, never Hermes alone.`,
     });
-    setTab("equipment");
     refresh();
   }
 
@@ -189,6 +189,7 @@ export function HospicePortal() {
                 ${state.money.pickupOverdueUsd.toFixed(2)} accruing
               </span>
             )}
+            <ApprovalsTray inbox={inbox} onApprove={approveInbox} onDismiss={dismissInbox} />
             <span>M. Ruiz, RN · case manager</span>
             <span className="inline-block h-[26px] w-[26px] rounded-full bg-secondary" />
           </div>
@@ -196,33 +197,24 @@ export function HospicePortal() {
       </header>
 
       <div className="mx-auto w-full max-w-7xl flex-1 bg-surface">
-        {tab === "patients" && (
-          <PatientsTab
-            patients={patients}
+        {tab === "equipment" && (
+          <EquipmentPage
             orders={orders}
+            patients={patients}
+            vendors={vendors}
             vendorName={vendorName}
             onNewOrder={(patientId) => {
               setNewOrderFor(patientId);
               setNewOrderOpen(true);
             }}
-            onRecordPassing={(patientId) => setDeceasedFor(patientId)}
-            onAddNote={addNote}
-            onMessageFamily={messageFamily}
-          />
-        )}
-        {tab === "equipment" && (
-          <EquipmentTab
-            orders={orders}
-            vendorName={vendorName}
-            inbox={inbox}
-            onApprove={approveInbox}
-            onDismiss={dismissInbox}
             onAddNote={addNote}
             onMessageFamily={messageFamily}
             onRequestReroute={requestReroute}
+            onRecordPassing={(patientId) => setDeceasedFor(patientId)}
           />
         )}
         {tab === "emr" && <EmrTab patients={patients} log={emrLog} onFire={fireEmrEvent} />}
+        {tab === "family" && <FamilyViewTab patients={patients} />}
       </div>
 
       {newOrderOpen && (
