@@ -98,10 +98,10 @@ export function HospicePortal() {
     refresh();
   }
 
-  async function messageFamily(patientId: string) {
+  async function messageFamily(patientId: string): Promise<boolean> {
     const patient = patients.find((p) => p.id === patientId);
-    if (!patient) return;
-    await postJson("/api/inbox", {
+    if (!patient) return false;
+    const ok = await postJson("/api/inbox", {
       source: "family_message",
       tier: "human_facing",
       patientId,
@@ -109,6 +109,7 @@ export function HospicePortal() {
       detail: `Claude-drafted update ready to review for ${patient.label} — a person sends it, never Hermes alone.`,
     });
     refresh();
+    return ok;
   }
 
   async function requestReroute(orderId: string) {

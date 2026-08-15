@@ -280,7 +280,7 @@ export function EmrTab({
           tracker above automatically. In a real HL7 feed this is the same discharge event
           (<span className="font-mono">ADT^A03</span>) as any other, carrying a death
           indicator — not a dedicated &quot;deceased&quot; message, which is why the nurse&apos;s
-          &quot;Record passing&quot; tap on the Patients tab is the primary path, and this feed
+          &quot;Record passing&quot; tap on Equipment ▸ By patient is the primary path, and this feed
           is the redundant fallback.
         </p>
         <div className="grid grid-cols-1 gap-2 md:grid-cols-2">

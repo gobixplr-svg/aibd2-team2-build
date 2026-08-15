@@ -76,11 +76,26 @@ export function PatientList({
   onNewOrder: (patientId: string) => void;
   onRecordPassing: (patientId: string) => void;
   onAddNote: (orderId: string) => void;
-  onMessageFamily: (patientId: string) => void;
+  onMessageFamily: (patientId: string) => Promise<boolean>;
 }) {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"All" | Patient["status"]>("All");
+  const [familyStatus, setFamilyStatus] = useState<Record<string, "sending" | "sent" | "error">>(
+    {},
+  );
+
+  async function handleMessageFamily(patientId: string) {
+    setFamilyStatus((s) => ({ ...s, [patientId]: "sending" }));
+    const ok = await onMessageFamily(patientId);
+    setFamilyStatus((s) => ({ ...s, [patientId]: ok ? "sent" : "error" }));
+    setTimeout(() => {
+      setFamilyStatus((s) => {
+        const { [patientId]: _drop, ...rest } = s;
+        return rest;
+      });
+    }, 3000);
+  }
 
   const q = query.trim().toLowerCase();
   const visible = patients
@@ -232,25 +247,35 @@ export function PatientList({
                       <div className="text-[11px] text-muted">No orders on file.</div>
                     ) : (
                       <div className="flex flex-col gap-1.5">
-                        {patientOrders.map((o) =>
-                          o.items.map((it) => (
-                            <div
-                              key={`${o.id}-${it.hcpcs}`}
-                              className="flex items-center gap-2.5 rounded-md border border-line bg-surface px-3 py-2 text-[11px]"
-                            >
-                              <span className="font-mono text-[10px] text-muted">{it.hcpcs}</span>
-                              <span className="flex-1 text-ink">{it.name}</span>
-                              <span className="text-[9px] text-muted">
-                                {Math.round(daysOnRent(o))} d · ${Math.round(orderDailyRate(o) * 30)}/mo
-                              </span>
-                              <span
-                                className={`rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${PILL_CLASS[o.state]}`}
+                        {patientOrders.map((o) => (
+                          <div key={o.id} className="flex flex-col gap-1.5">
+                            {o.items.map((it) => (
+                              <div
+                                key={`${o.id}-${it.hcpcs}`}
+                                className="flex items-center gap-2.5 rounded-md border border-line bg-surface px-3 py-2 text-[11px]"
                               >
-                                {o.state === "pickup_triggered" ? "Pickup triggered" : o.state.replace(/_/g, " ")}
-                              </span>
-                            </div>
-                          )),
-                        )}
+                                <span className="font-mono text-[10px] text-muted">{it.hcpcs}</span>
+                                <span className="flex-1 text-ink">{it.name}</span>
+                                <span className="text-[9px] text-muted">
+                                  {Math.round(daysOnRent(o))} d · ${Math.round(orderDailyRate(o) * 30)}/mo
+                                </span>
+                                <span
+                                  className={`rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${PILL_CLASS[o.state]}`}
+                                >
+                                  {o.state === "pickup_triggered" ? "Pickup triggered" : o.state.replace(/_/g, " ")}
+                                </span>
+                              </div>
+                            ))}
+                            {o.note && (
+                              <div className="rounded-md border border-dashed border-line-strong bg-page px-3 py-2 text-[10.5px] leading-relaxed text-ink-soft">
+                                <span className="mr-1 text-[9px] uppercase tracking-wide text-muted">
+                                  Note ·
+                                </span>
+                                {o.note}
+                              </div>
+                            )}
+                          </div>
+                        ))}
                       </div>
                     )}
 
@@ -337,11 +362,25 @@ export function PatientList({
                         </Link>
                       )}
                       <button
-                        onClick={() => onMessageFamily(p.id)}
-                        className="rounded-md border border-line-strong bg-surface px-3 py-2 text-[11px] text-ink-soft"
+                        onClick={() => handleMessageFamily(p.id)}
+                        disabled={familyStatus[p.id] === "sending"}
+                        className="rounded-md border border-line-strong bg-surface px-3 py-2 text-[11px] text-ink-soft disabled:opacity-60"
                       >
                         Message family
                       </button>
+                      {familyStatus[p.id] === "sending" && (
+                        <span className="self-center text-[10px] text-muted">Drafting…</span>
+                      )}
+                      {familyStatus[p.id] === "sent" && (
+                        <span className="self-center text-[10px] text-teal">
+                          Draft sent to Approvals ✓
+                        </span>
+                      )}
+                      {familyStatus[p.id] === "error" && (
+                        <span className="self-center text-[10px] text-critical">
+                          Couldn&apos;t send — try again
+                        </span>
+                      )}
                       <button
                         onClick={() => {
                           const target = patientOrders[0];

@@ -43,7 +43,7 @@ export function EquipmentPage({
   vendorName: (id: string) => string;
   onNewOrder: (patientId?: string) => void;
   onAddNote: (orderId: string, note: string) => void;
-  onMessageFamily: (patientId: string) => void;
+  onMessageFamily: (patientId: string) => Promise<boolean>;
   onRequestReroute: (orderId: string) => void;
   onRecordPassing: (patientId: string) => void;
   onAdvanceOnHand: (assetId: string, patientId?: string) => void;
