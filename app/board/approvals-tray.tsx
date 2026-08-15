@@ -58,6 +58,9 @@ export function ApprovalsTray({
                     <span className="text-[9px] uppercase tracking-wide text-muted">
                       {INBOX_KIND_LABEL[a.kind]}
                     </span>
+                    {a.context && (
+                      <span className="text-[10px] font-semibold text-ink">{a.context}</span>
+                    )}
                   </div>
                   <div className="my-1.5 text-[11px] leading-relaxed text-ink">{a.detail}</div>
                   {a.draft !== undefined && (

@@ -318,6 +318,9 @@ export interface InboxItem {
   // Lets detail views show a pending draft inline next to its patient,
   // not only in the header tray.
   patientId?: string;
+  // "M. Checketts · ord-1001" — who/what this approval is about, so the
+  // tray never shows an anonymous card.
+  context?: string;
 }
 
 export const INBOX_KIND_LABEL: Record<InboxKind, string> = {

@@ -51,6 +51,14 @@ export function PodSheet({
   const allChecked = checks.clean && checks.functional && checks.complete;
   const canConfirm = signedBy.trim().length > 1 && (allChecked || note.trim().length > 3);
 
+  // Say WHY the confirm button is disabled — an unexplained dead button
+  // reads as a bug, and the condition attestation is the compliance story.
+  const stillNeeded: string[] = [];
+  if (!allChecked && note.trim().length <= 3)
+    stillNeeded.push("check all three condition boxes (or describe the issue)");
+  if (signedBy.trim().length <= 1)
+    stillNeeded.push(mode === "delivery" ? "add who received it" : "add the driver's name");
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-end sm:items-center sm:justify-center bg-navy/60"
@@ -131,6 +139,11 @@ export function PodSheet({
           />
         </label>
 
+        {stillNeeded.length > 0 && (
+          <p className="text-[11px] leading-relaxed text-ink-soft">
+            To confirm: {stillNeeded.join(" · ")}
+          </p>
+        )}
         <div className="flex gap-2">
           <button
             onClick={onCancel}
