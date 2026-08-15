@@ -85,7 +85,10 @@ name: Hermes heartbeat
 
 on:
   schedule:
-    - cron: "*/5 * * * *"
+    # Shipped as 2-57/5, not */5: GitHub starves new workflows on
+    # high-contention minutes — */5 never fired in its first two hours;
+    # the off-minutes schedule fired within the hour. Same 5-min cadence.
+    - cron: "2-57/5 * * * *"
   workflow_dispatch:
 
 concurrency:

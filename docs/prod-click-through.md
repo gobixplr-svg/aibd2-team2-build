@@ -8,6 +8,15 @@ again Sat 9 AM per the runbook.
 **Anyone on the team can run this.** Post results in Discord as you go —
 beat number, ✅/❌, screenshot if ❌ plus what you expected vs. saw.
 
+**Fastest way: run the beats on [`/stage`](https://aibd2-team2-build.vercel.app/stage)** —
+all three surfaces in one tab, the referral behind a Copy button, and the
+time jumps as one-button beats in the director bar (unlock it with the
+Hermes secret, same sessionStorage key as `/control`). The device rig below
+still matters for the physical phone moment and Sat-morning verification.
+Note: Equipment now has FOUR sub-tabs (Equipment / By patient / On-hand /
+Analytics) — On-hand is the consignment-stock answer to the "serialized
+inventory" required feature, Q&A ammo.
+
 ## Before you start — coordination rule
 
 **Announce in Discord and wait for an ack before you begin. One runner at a
