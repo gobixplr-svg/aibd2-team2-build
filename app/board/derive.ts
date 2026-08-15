@@ -324,6 +324,111 @@ export function lengthOfUseRows(orders: Order[], now: number = Date.now()): Leng
     .sort((a, b) => b.avgDays - a.avgDays);
 }
 
+// ── Month-over-month cost (Analytics, filterable) ────────────────────
+// Reads only order records the app already writes (timestamps.delivered,
+// pickup.completedAt, items[].hcpcs) — no fabricated series. An order
+// still renting (no completedAt) accrues into the CURRENT month every
+// day it stays open, same as a real recurring rental would.
+
+const D = 86_400_000;
+
+function monthKey(ms: number): string {
+  const d = new Date(ms);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+export interface MonthPoint {
+  key: string; // "2026-03", sortable
+  label: string; // "Mar '26"
+}
+
+/** The last `n` calendar months ending at the month containing `now` —
+ *  fixed x-axis for the trend charts so a quiet month still gets a slot
+ *  instead of silently disappearing from the chart. */
+export function lastNMonths(now: number, n: number): MonthPoint[] {
+  const anchor = new Date(now);
+  const out: MonthPoint[] = [];
+  for (let i = n - 1; i >= 0; i--) {
+    const d = new Date(anchor.getFullYear(), anchor.getMonth() - i, 1);
+    out.push({
+      key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
+      label: d.toLocaleDateString([], { month: "short", year: "2-digit" }),
+    });
+  }
+  return out;
+}
+
+export interface MonthlyCostRow {
+  month: string; // monthKey
+  vendorId: string;
+  category: string;
+  hcpcs: string;
+  amount: number;
+}
+
+/** Long-format monthly spend, one row per (month, vendor, category, item).
+ *  Every order's daily rate is credited to the calendar month each rental
+ *  day actually fell in — a bed delivered in late Feb and picked up in
+ *  March bills against both months, like a real recurring rental would.
+ *  Pivot/filter this in the component; keep this function to "what the
+ *  records say," not a specific chart's shape. */
+export function monthlyDmeCost(orders: Order[], now: number): MonthlyCostRow[] {
+  const buckets = new Map<string, MonthlyCostRow>();
+  for (const o of orders) {
+    const deliveredAt = o.timestamps.delivered ? new Date(o.timestamps.delivered).getTime() : null;
+    if (deliveredAt === null) continue;
+    const end = Math.min(
+      o.pickup?.completedAt ? new Date(o.pickup.completedAt).getTime() : now,
+      now,
+    );
+    if (end <= deliveredAt) continue;
+    for (const it of o.items) {
+      const rate = dailyRateUsd(it.hcpcs);
+      const category = categoryOf(it.hcpcs);
+      let cursor = deliveredAt;
+      while (cursor < end) {
+        const key = `${monthKey(cursor)}|${o.vendorId}|${category}|${it.hcpcs}`;
+        const row = buckets.get(key) ?? {
+          month: monthKey(cursor),
+          vendorId: o.vendorId,
+          category,
+          hcpcs: it.hcpcs,
+          amount: 0,
+        };
+        row.amount += rate;
+        buckets.set(key, row);
+        cursor += D;
+      }
+    }
+  }
+  return [...buckets.values()];
+}
+
+/** Pivot monthlyDmeCost rows into month × vendor totals, scoped to
+ *  months/vendors/category the caller wants — the shape the "spend by
+ *  vendor, month over month" chart actually renders. category="All"
+ *  sums every category; a specific category name scopes to just it, so
+ *  the same chart answers both "compare vendors overall" and "compare
+ *  vendors for this one equipment type." */
+export function monthlyByVendor(
+  rows: MonthlyCostRow[],
+  months: MonthPoint[],
+  vendorIds: string[],
+  category: string,
+): { month: MonthPoint; byVendor: Record<string, number> }[] {
+  const monthSet = new Set(months.map((m) => m.key));
+  const vendorSet = new Set(vendorIds);
+  const totals = new Map<string, Record<string, number>>();
+  for (const r of rows) {
+    if (!monthSet.has(r.month) || !vendorSet.has(r.vendorId)) continue;
+    if (category !== "All" && r.category !== category) continue;
+    const row = totals.get(r.month) ?? {};
+    row[r.vendorId] = (row[r.vendorId] ?? 0) + r.amount;
+    totals.set(r.month, row);
+  }
+  return months.map((month) => ({ month, byVendor: totals.get(month.key) ?? {} }));
+}
+
 export interface VendorPerfRow {
   vendor: Vendor;
   spend: number;
