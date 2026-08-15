@@ -298,9 +298,6 @@ function PanelLabel({
       <span className="text-sm leading-none">{icon}</span>
       <span className="text-xs font-bold tracking-wider">{who}</span>
       <span className="text-[11px] text-white/75">{detail}</span>
-      <span className="ml-auto rounded-sm bg-white/15 px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-white/80">
-        separate window · same live system
-      </span>
     </div>
   );
 }
