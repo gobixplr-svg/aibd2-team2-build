@@ -152,9 +152,19 @@ export function HospicePortal() {
           ? "discharged"
           : "deceased";
     await postJson("/api/emr-event", { patientId: patient.id, status, source: "emr" });
+    // Real HL7 shape (HCHB pattern): admission is ADT^A01; discharge and
+    // death are both ADT^A03, distinguished only by the death indicator —
+    // there's no dedicated "deceased" trigger event in the wire format.
+    const adt = status === "admitted" ? "ADT^A01" : "ADT^A03";
+    const segments =
+      status === "admitted"
+        ? "new admission"
+        : status === "deceased"
+          ? "PID-30 (death ind): Y · PV1-36: 20 (Expired)"
+          : "PID-30 (death ind): N";
     setEmrLog((l) =>
       [
-        `${new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" })} → newOrUpdatePatient (${status}) · ${patient.label}`,
+        `${new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" })} ${adt} → ${segments} · ${patient.label}`,
         ...l,
       ].slice(0, 8),
     );
