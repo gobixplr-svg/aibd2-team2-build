@@ -39,6 +39,38 @@ interface Beat {
   // fetch cost.byKind and put the per-kind lines in the note bar, so the
   // presenter quotes real numbers instead of remembering them.
   showLedger?: boolean;
+  // Auto-advance: the story metric whose INCREASE (vs. a baseline taken
+  // when the beat became active) means this beat's on-screen work is done.
+  // Edge-triggered so pre-existing world state never skips beats.
+  advanceOn?: keyof StoryCounts;
+}
+
+// The handful of world facts the director bar watches to follow the story.
+interface StoryCounts {
+  orders: number; // any new order placed (intake done)
+  moving: number; // dispatched / in transit (vendor accepted)
+  atRisk: number; // flagged before it's late
+  delivered: number; // POD confirmed
+  windows: number; // pickup retrieval window committed
+  approvals: number; // human approved an inbox item (family draft sent)
+}
+
+interface WorldOrder {
+  state: string;
+  pickup?: { windowStart?: string };
+}
+
+function toCounts(s: { orders?: WorldOrder[]; inbox?: { status?: string }[] }): StoryCounts {
+  const orders = s.orders ?? [];
+  const inbox = s.inbox ?? [];
+  return {
+    orders: orders.length,
+    moving: orders.filter((o) => o.state === "dispatched" || o.state === "in_transit").length,
+    atRisk: orders.filter((o) => o.state === "at_risk").length,
+    delivered: orders.filter((o) => o.state === "delivered").length,
+    windows: orders.filter((o) => o.pickup?.windowStart).length,
+    approvals: inbox.filter((i) => i.status === "approved").length,
+  };
 }
 
 const BEATS: Beat[] = [
@@ -59,28 +91,33 @@ const BEATS: Beat[] = [
     say: "When the AI isn't sure it says so per field — and what it can't map it hands back instead of guessing. A human confirms every field. About half a cent per extraction.",
     copyReferral: true,
     spotlight: "new-order",
+    advanceOn: "orders",
   },
   {
     title: "Vendor, zero login",
     cue: "Vendor panel (or hold up the phone): Accept order → in transit.",
     say: "Magic link, no account, no install. Both sides are the same server world — one database, no smoke.",
+    advanceOn: "moving",
   },
   {
     title: "Risk fires before it's late",
     cue: "Fire the button, then point at the flagged order on the board: computed numbers + the ranked why with its confidence.",
     say: "The model receives computed features and returns a choice from a fixed list. It cannot invent a delivery status — that failure mode is closed off architecturally.",
     action: { label: "Speed 60× + Tick now", run: "speed-tick" },
+    advanceOn: "atRisk",
   },
   {
     title: "Delivered, family sees it",
     cue: "Vendor panel: Delivered → POD condition checklist. Family panel updates on its own.",
     say: "Proof of delivery with condition capture — and the family already knows the bed is set up.",
+    advanceOn: "delivered",
   },
   {
     title: "The hard part of hospice",
     cue: "Board ▸ By patient → expand → Record passing (own confirm). Vendor panel: Acknowledge pickup → commit a retrieval window. Family panel shows the window.",
     say: "Closed loop: acknowledged, scheduled, completed — with a 24-hour SLA clock. Nobody in this market closes this loop.",
     spotlight: "subtab-by-patient",
+    advanceOn: "windows",
   },
   {
     title: "Escalation, human approval",
@@ -88,6 +125,7 @@ const BEATS: Beat[] = [
     say: "Anything a family reads is drafted by AI and sent by a person. Never Hermes alone.",
     action: { label: "+25h + Tick now", run: "jump-tick" },
     spotlight: "approvals",
+    advanceOn: "approvals",
   },
   {
     title: "Close on the ledger",
@@ -112,7 +150,45 @@ export function StagePage() {
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [autoAdvance, setAutoAdvance] = useState(true);
   const boardFrame = useRef<HTMLIFrameElement>(null);
+
+  // Follow the story: while the current beat has an advanceOn metric, poll
+  // the world and step forward when that metric rises above the baseline
+  // taken as the beat became active. The presenter clicks in the panels;
+  // the bar keeps up. Manual Prev/Next always still work, and the toggle
+  // kills it instantly if it ever misfires mid-pitch.
+  useEffect(() => {
+    const metric = BEATS[beat].advanceOn;
+    if (!autoAdvance || !metric) return;
+    let baseline: StoryCounts | null = null;
+    let cancelled = false;
+    const check = async () => {
+      try {
+        const res = await fetch("/api/state?scope=hospice");
+        const s = await res.json();
+        if (cancelled) return;
+        const counts = toCounts(s);
+        if (!baseline) {
+          baseline = counts;
+          return;
+        }
+        if (counts[metric] > baseline[metric]) {
+          cancelled = true;
+          setNote(`✓ ${BEATS[beat].title} — done on the board, advancing`);
+          setBeat((x) => Math.min(BEATS.length - 1, x + 1));
+        }
+      } catch {
+        // polling is best-effort; the presenter still has Next
+      }
+    };
+    check();
+    const id = setInterval(check, 2000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [beat, autoAdvance]);
 
   // On beat change: ring the control this beat is about on the board, and
   // for the ledger close pull the real per-kind numbers into the note bar.
@@ -187,6 +263,8 @@ export function StagePage() {
         if (action.run === "reset") {
           await call("/api/reset");
           setNote("World reset — seeded fresh.");
+          // Rig check is done the moment the reset lands.
+          setBeat((x) => (x === 0 ? 1 : x));
         } else {
           if (action.run === "speed-tick") await call("/api/clock", { speed: 60 });
           else await call("/api/clock", { jumpHours: 25 });
@@ -296,6 +374,15 @@ export function StagePage() {
                     {busy ? "…" : b.action.label}
                   </button>
                 )}
+                <label className="flex cursor-pointer items-center gap-1.5 rounded-md border border-white/15 px-2 py-1.5 text-[10px] text-white/60">
+                  <input
+                    type="checkbox"
+                    checked={autoAdvance}
+                    onChange={(e) => setAutoAdvance(e.target.checked)}
+                    className="h-3 w-3 accent-(--brx-teal)"
+                  />
+                  Follow the story
+                </label>
                 <button
                   onClick={() => setBeat((x) => Math.max(0, x - 1))}
                   disabled={beat === 0}
