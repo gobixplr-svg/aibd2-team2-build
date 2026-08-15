@@ -10,7 +10,9 @@ export default function Home() {
           <div className="text-xs font-semibold uppercase tracking-wider text-brand">
             BetterRX Builder Day · Team 2
           </div>
-          <h1 className="text-3xl font-bold text-navy">Handoff</h1>
+          <h1 className="text-3xl font-bold text-navy">
+            Better<span className="text-brand">RX</span>
+          </h1>
           <p className="mt-1 text-sm text-ink-soft">
             The shared status board between hospices and DME vendors — it sees
             the failure coming before the family does.
@@ -22,7 +24,7 @@ export default function Home() {
             href="/board"
             title="Hospice portal"
             who="admissions nurse · case manager · DON"
-            note="live — Patients / Equipment / EMR simulator tabs"
+            note="live — Equipment (list/patient/analytics) / EMR simulator / Family view"
           />
           <Surface
             href="/v/demo-vendor"

@@ -372,7 +372,7 @@ export function OrderFormModal({
                     <div className="font-medium text-ink">{row.vendor.name}</div>
                     {!row.vendor.connected && (
                       <div className="text-[9px] leading-tight text-muted">
-                        not yet connected — Handoff still tracks it
+                        not yet connected — BetterRX still tracks it
                       </div>
                     )}
                   </div>

@@ -3,8 +3,8 @@
 // same order list — one source of truth, not two roll-ups that could
 // drift apart on stage.
 
-import type { Order, OrderState } from "@/lib/contracts";
-import { dailyRateUsd } from "@/lib/data/catalog";
+import type { Order, OrderState, Patient, Vendor } from "@/lib/contracts";
+import { categoryOf, dailyRateUsd, EQUIPMENT } from "@/lib/data/catalog";
 
 export const STATE_LABEL: Record<OrderState, string> = {
   ordered: "Ordered",
@@ -28,13 +28,17 @@ export const RAIL_CLASS: Record<OrderState, string> = {
   pickup_delayed: "bg-critical",
 };
 
+// Hi-fi pass (turn 3 restyle): solid brand fills, not pastel tints —
+// matches the design doc's embedded badge color map exactly
+// (ordered/pickup → secondary+white, dispatched/transit/delivered →
+// teal+navy, at_risk unchanged since #ffaf03/#24333f was already right).
 export const PILL_CLASS: Record<OrderState, string> = {
-  ordered: "bg-line text-ink-soft",
-  dispatched: "bg-teal/15 text-teal",
-  in_transit: "bg-teal/15 text-teal",
+  ordered: "bg-secondary text-white",
+  dispatched: "bg-teal text-navy",
+  in_transit: "bg-teal text-navy",
   at_risk: "bg-warning text-ink",
-  delivered: "bg-teal/15 text-teal",
-  pickup_triggered: "bg-line text-ink-soft",
+  delivered: "bg-teal text-navy",
+  pickup_triggered: "bg-secondary text-white",
   pickup_delayed: "bg-critical text-white",
 };
 
@@ -81,19 +85,190 @@ export function openDmeLabel(orders: Order[]): string {
   return `${count} ${OPEN_LABEL[top]}`;
 }
 
-/** Billed so far: daily rate × days on rent, from delivery to pickup (or now). */
-export function orderDmeSpend(order: Order, now: number = Date.now()): number {
+/** Days on rent so far: delivery to pickup completion (or now). */
+export function daysOnRent(order: Order, now: number = Date.now()): number {
   const deliveredAt = order.timestamps.delivered;
   if (!deliveredAt) return 0;
   const end = order.pickup?.completedAt ? new Date(order.pickup.completedAt).getTime() : now;
   const start = new Date(deliveredAt).getTime();
-  const days = Math.max((end - start) / 86_400_000, 0);
-  const dailyTotal = order.items.reduce((s, it) => s + dailyRateUsd(it.hcpcs), 0);
-  return Math.round(dailyTotal * days);
+  return Math.max((end - start) / 86_400_000, 0);
+}
+
+/** Combined daily rental rate for everything on the order. */
+export function orderDailyRate(order: Order): number {
+  return order.items.reduce((s, it) => s + dailyRateUsd(it.hcpcs), 0);
+}
+
+/** Billed so far: daily rate × days on rent, from delivery to pickup (or now). */
+export function orderDmeSpend(order: Order, now: number = Date.now()): number {
+  return Math.round(orderDailyRate(order) * daysOnRent(order, now));
 }
 
 export function dmeSpendFor(orders: Order[]): number {
   return orders.reduce((s, o) => s + orderDmeSpend(o), 0);
+}
+
+/** Days an order's equipment has sat idle past its pickup SLA (still accruing rent). */
+export function idlePickupDays(order: Order, now: number = Date.now()): number {
+  if (!order.pickup) return 0;
+  const end = order.pickup.completedAt ? new Date(order.pickup.completedAt).getTime() : now;
+  const due = new Date(order.pickup.dueAt).getTime();
+  return Math.max((end - due) / 86_400_000, 0);
+}
+
+// ── Analytics (Equipment › Analytics, wireframe turn 3, 3c) ──────────
+// Everything below reads only order/vendor records the app already
+// writes — no fabricated history. Where the source data can't honestly
+// support a number (a multi-month trend, for one — the seed has no
+// real historical buckets), the chart is reshaped around what the
+// records actually contain rather than inventing one.
+
+export interface EquipmentRankRow {
+  hcpcs: string;
+  label: string;
+  count: number;
+  spend: number;
+}
+
+/** Most-ordered equipment: order count + spend-to-date per catalog code. */
+export function topEquipment(orders: Order[]): EquipmentRankRow[] {
+  const rows = new Map<string, EquipmentRankRow>();
+  for (const o of orders) {
+    for (const it of o.items) {
+      const row = rows.get(it.hcpcs) ?? {
+        hcpcs: it.hcpcs,
+        label: EQUIPMENT[it.hcpcs]?.name ?? it.name,
+        count: 0,
+        spend: 0,
+      };
+      row.count += 1;
+      row.spend += orderDmeSpend(o) / o.items.length;
+      rows.set(it.hcpcs, row);
+    }
+  }
+  return Array.from(rows.values()).sort((a, b) => b.count - a.count);
+}
+
+/** Spend-to-date bucketed by equipment category — the honest stand-in
+ *  for a monthly trend chart when there's no multi-month history yet. */
+export function spendByCategory(orders: Order[]): { category: string; amount: number }[] {
+  const totals = new Map<string, number>();
+  for (const o of orders) {
+    const perItem = orderDmeSpend(o) / Math.max(o.items.length, 1);
+    for (const it of o.items) {
+      const cat = categoryOf(it.hcpcs);
+      totals.set(cat, (totals.get(cat) ?? 0) + perItem);
+    }
+  }
+  return Array.from(totals.entries())
+    .map(([category, amount]) => ({ category, amount: Math.round(amount) }))
+    .sort((a, b) => b.amount - a.amount);
+}
+
+export interface LengthOfUseRow {
+  hcpcs: string;
+  label: string;
+  avgDays: number;
+  idleDays: number;
+  dailyRate: number;
+}
+
+/** Avg days placed + idle (post-pickup-SLA) days per equipment code. */
+export function lengthOfUseRows(orders: Order[]): LengthOfUseRow[] {
+  const byCode = new Map<string, { days: number[]; idle: number }>();
+  for (const o of orders) {
+    if (!o.timestamps.delivered) continue;
+    for (const it of o.items) {
+      const bucket = byCode.get(it.hcpcs) ?? { days: [], idle: 0 };
+      bucket.days.push(daysOnRent(o));
+      bucket.idle += idlePickupDays(o);
+      byCode.set(it.hcpcs, bucket);
+    }
+  }
+  return Array.from(byCode.entries())
+    .map(([hcpcs, b]) => ({
+      hcpcs,
+      label: EQUIPMENT[hcpcs]?.name ?? hcpcs,
+      avgDays: b.days.reduce((s, d) => s + d, 0) / b.days.length,
+      idleDays: b.idle,
+      dailyRate: dailyRateUsd(hcpcs),
+    }))
+    .sort((a, b) => b.avgDays - a.avgDays);
+}
+
+export interface VendorPerfRow {
+  vendor: Vendor;
+  spend: number;
+  orderCount: number;
+}
+
+export function vendorPerformance(orders: Order[], vendors: Vendor[]): VendorPerfRow[] {
+  return vendors
+    .map((vendor) => {
+      const vendorOrders = orders.filter((o) => o.vendorId === vendor.id);
+      return {
+        vendor,
+        spend: dmeSpendFor(vendorOrders),
+        orderCount: vendorOrders.length,
+      };
+    })
+    .filter((r) => r.orderCount > 0)
+    .sort((a, b) => (b.vendor.stats?.onTimeRate ?? 0) - (a.vendor.stats?.onTimeRate ?? 0));
+}
+
+/** Total rental days still accruing past pickup SLA, across all orders — the
+ *  money the 24h clock is there to recover. */
+export function postPickupIdleDays(orders: Order[]): number {
+  return orders.reduce((s, o) => s + idlePickupDays(o), 0);
+}
+
+export function postPickupIdleCost(orders: Order[]): number {
+  return Math.round(
+    orders.reduce((s, o) => s + idlePickupDays(o) * orderDailyRate(o), 0),
+  );
+}
+
+/** Patient-days on census so far — a coarse proxy from each patient's
+ *  earliest order timestamp, used only to divide total spend into a
+ *  per-patient-day figure. Not a real admissions feed. */
+export function patientDaysOnCensus(patient: Patient, orders: Order[], now: number = Date.now()): number {
+  const patientOrders = orders.filter((o) => o.patientId === patient.id);
+  const earliest = patientOrders
+    .map((o) => o.timestamps.ordered)
+    .filter((t): t is string => Boolean(t))
+    .map((t) => new Date(t).getTime());
+  if (earliest.length === 0) return 0;
+  return Math.max((now - Math.min(...earliest)) / 86_400_000, 0);
+}
+
+export function ordersToCsv(orders: Order[]): string {
+  const header = [
+    "order_id",
+    "patient",
+    "items",
+    "state",
+    "vendor_id",
+    "urgency",
+    "target_at",
+    "days_on_rent",
+    "dme_spend_usd",
+  ];
+  const rows = orders.map((o) =>
+    [
+      o.id,
+      o.patientLabel,
+      o.items.map((i) => i.hcpcs).join("|"),
+      o.state,
+      o.vendorId,
+      o.urgency,
+      o.targetAt,
+      daysOnRent(o).toFixed(1),
+      orderDmeSpend(o),
+    ]
+      .map((v) => `"${String(v).replace(/"/g, '""')}"`)
+      .join(","),
+  );
+  return [header.join(","), ...rows].join("\n");
 }
 
 // Approval inbox — lives in the Equipment tab's rail, never a separate

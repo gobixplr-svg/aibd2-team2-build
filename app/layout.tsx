@@ -9,7 +9,7 @@ const poppins = Poppins({
 });
 
 export const metadata: Metadata = {
-  title: "Handoff",
+  title: "BetterRX",
   description:
     "Shared DME order visibility for hospices and vendors — sees the failure coming before the family does.",
 };
