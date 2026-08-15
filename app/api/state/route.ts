@@ -114,8 +114,53 @@ export async function GET(req: Request) {
         );
       }, 0);
 
+    // ── Cost, broken down by capability ──────────────────────
+    // Deliverable B asks for cost per order. One blended number stopped
+    // meaning anything once the ledger carried five kinds: a family text
+    // is not an order, and a referral extraction is not a triage pass.
+    // So report each capability separately and derive a per-order figure
+    // from the order-scoped work only.
+    const ORDER_SCOPED = new Set([
+      "triage",
+      "order_intake",
+      "status_note",
+      "family_draft",
+    ]);
+
+    const byKind: Record<
+      string,
+      { calls: number; tokens: number; usd: number; units: number; perUnitUsd: number }
+    > = {};
+    for (const e of ledger) {
+      const k = (byKind[e.kind] ??= {
+        calls: 0,
+        tokens: 0,
+        usd: 0,
+        units: 0,
+        perUnitUsd: 0,
+      });
+      k.calls += 1;
+      k.tokens += e.inputTokens + e.outputTokens;
+      k.usd += e.costUsd;
+      k.units += e.orderCount ?? 1;
+    }
+    for (const k of Object.values(byKind)) {
+      k.usd = Number(k.usd.toFixed(5));
+      k.perUnitUsd = k.units ? Number((k.usd / k.units).toFixed(5)) : 0;
+    }
+
     const costUsd = ledger.reduce((s, e) => s + e.costUsd, 0);
-    const tokens = ledger.reduce((s, e) => s + e.inputTokens + e.outputTokens, 0);
+    const tokens = ledger.reduce(
+      (s, e) => s + e.inputTokens + e.outputTokens,
+      0,
+    );
+
+    const orderLedger = ledger.filter((e) => ORDER_SCOPED.has(e.kind));
+    const orderUsd = orderLedger.reduce((s, e) => s + e.costUsd, 0);
+    const orderUnits = orderLedger.reduce((s, e) => s + (e.orderCount ?? 1), 0);
+
+    const msgLedger = ledger.filter((e) => e.kind === "message_triage");
+    const msgUsd = msgLedger.reduce((s, e) => s + e.costUsd, 0);
 
     const payload = {
       ...base,
@@ -130,13 +175,16 @@ export async function GET(req: Request) {
         totalUsd: Number(costUsd.toFixed(4)),
         tokens,
         calls: ledger.length,
-        // Sum the orders each call actually covered — a batched triage of
-        // four orders is four orders, not one.
-        ordersCovered: ledger.reduce((s, e) => s + (e.orderCount ?? 1), 0),
-        perOrderUsd: (() => {
-          const n = ledger.reduce((s, e) => s + (e.orderCount ?? 1), 0);
-          return n ? Number((costUsd / n).toFixed(5)) : 0;
-        })(),
+        // Order-scoped only. A batched triage of four orders counts as
+        // four; a family message counts as neither.
+        ordersCovered: orderUnits,
+        perOrderUsd: orderUnits
+          ? Number((orderUsd / orderUnits).toFixed(5))
+          : 0,
+        perMessageUsd: msgLedger.length
+          ? Number((msgUsd / msgLedger.length).toFixed(5))
+          : 0,
+        byKind,
       },
       money: { pickupOverdueUsd: Number(overdueUsd.toFixed(2)) },
       calibration: await getCalibration(),
