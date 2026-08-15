@@ -165,9 +165,14 @@ export function HospicePortal() {
 
   return (
     <div className="flex flex-col min-h-dvh w-full">
-      <header className="bg-navy text-white">
+      <header className="bg-navy text-white border-t-[3px] border-brand">
         <div className="mx-auto flex w-full max-w-7xl items-center gap-6 px-4">
-          <div className="py-3.5 text-[15px] font-bold">Handoff</div>
+          <div className="flex items-center gap-1.5 py-3.5">
+            <span className="inline-block h-5 w-5 rounded-md bg-brand" />
+            <span className="text-[15px] font-bold tracking-tight">
+              Better<span className="text-brand">RX</span>
+            </span>
+          </div>
           <nav className="flex gap-0.5 self-stretch text-xs">
             {TABS.map((t) => (
               <button

@@ -28,13 +28,17 @@ export const RAIL_CLASS: Record<OrderState, string> = {
   pickup_delayed: "bg-critical",
 };
 
+// Hi-fi pass (turn 3 restyle): solid brand fills, not pastel tints —
+// matches the design doc's embedded badge color map exactly
+// (ordered/pickup → secondary+white, dispatched/transit/delivered →
+// teal+navy, at_risk unchanged since #ffaf03/#24333f was already right).
 export const PILL_CLASS: Record<OrderState, string> = {
-  ordered: "bg-line text-ink-soft",
-  dispatched: "bg-teal/15 text-teal",
-  in_transit: "bg-teal/15 text-teal",
+  ordered: "bg-secondary text-white",
+  dispatched: "bg-teal text-navy",
+  in_transit: "bg-teal text-navy",
   at_risk: "bg-warning text-ink",
-  delivered: "bg-teal/15 text-teal",
-  pickup_triggered: "bg-line text-ink-soft",
+  delivered: "bg-teal text-navy",
+  pickup_triggered: "bg-secondary text-white",
   pickup_delayed: "bg-critical text-white",
 };
 

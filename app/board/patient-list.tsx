@@ -10,6 +10,7 @@ import {
   idlePickupDays,
   openDmeLabel,
   orderDailyRate,
+  PILL_CLASS,
   STATE_LABEL,
 } from "./derive";
 
@@ -178,13 +179,7 @@ export function PatientList({
                                 {Math.round(daysOnRent(o))} d · ${Math.round(orderDailyRate(o) * 30)}/mo
                               </span>
                               <span
-                                className={`rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${
-                                  o.state === "pickup_triggered" || o.state === "pickup_delayed"
-                                    ? "bg-line text-ink-soft"
-                                    : o.state === "delivered"
-                                      ? "bg-teal/15 text-teal"
-                                      : "bg-cream text-ink"
-                                }`}
+                                className={`rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${PILL_CLASS[o.state]}`}
                               >
                                 {o.state === "pickup_triggered" ? "Pickup triggered" : o.state.replace(/_/g, " ")}
                               </span>

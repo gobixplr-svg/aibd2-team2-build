@@ -57,7 +57,7 @@ export function EquipmentPage({
   const noteOrder = noteFor ? orders.find((o) => o.id === noteFor) : undefined;
 
   return (
-    <div className="p-5 bg-page">
+    <div className="p-5 bg-cream">
       <div className="rounded-2xl border border-line bg-surface overflow-hidden">
         <div className="flex items-end gap-3 border-b border-line px-5 pt-4">
           <div>
