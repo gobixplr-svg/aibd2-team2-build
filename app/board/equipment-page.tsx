@@ -1,15 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import type { Order, Patient, Vendor } from "@/lib/contracts";
+import type { OnHandAsset, Order, Patient, Vendor } from "@/lib/contracts";
 import { AnalyticsTab } from "./analytics-tab";
 import { EquipmentList } from "./equipment-list";
 import { NoteModal } from "./note-modal";
+import { OnHandList } from "./on-hand-list";
 import { PatientList } from "./patient-list";
 
 const SUB_TABS = [
   { key: "list", label: "Equipment" },
   { key: "by-patient", label: "By patient" },
+  { key: "on-hand", label: "On-hand" },
   { key: "analytics", label: "Analytics" },
 ] as const;
 
@@ -23,6 +25,7 @@ export function EquipmentPage({
   orders,
   patients,
   vendors,
+  onHand,
   now,
   vendorName,
   onNewOrder,
@@ -30,10 +33,12 @@ export function EquipmentPage({
   onMessageFamily,
   onRequestReroute,
   onRecordPassing,
+  onAdvanceOnHand,
 }: {
   orders: Order[];
   patients: Patient[];
   vendors: Vendor[];
+  onHand: OnHandAsset[];
   now: number;
   vendorName: (id: string) => string;
   onNewOrder: (patientId?: string) => void;
@@ -41,6 +46,7 @@ export function EquipmentPage({
   onMessageFamily: (patientId: string) => void;
   onRequestReroute: (orderId: string) => void;
   onRecordPassing: (patientId: string) => void;
+  onAdvanceOnHand: (assetId: string, patientId?: string) => void;
 }) {
   const [subTab, setSubTab] = useState<SubTabKey>("list");
   const [noteFor, setNoteFor] = useState<string | null>(null);
@@ -54,7 +60,9 @@ export function EquipmentPage({
       ? `${patients.length} patients on census · ${orders.reduce((s, o) => s + o.items.length, 0)} assets placed`
       : subTab === "analytics"
         ? "Analytics · synthetic"
-        : `${orders.length} open orders${needsAttention > 0 ? ` · ${needsAttention} need attention` : ""}`;
+        : subTab === "on-hand"
+          ? `${onHand.length} consignment assets · ${onHand.filter((a) => a.state === "on_hand").length} on-hand now`
+          : `${orders.length} open orders${needsAttention > 0 ? ` · ${needsAttention} need attention` : ""}`;
 
   const noteOrder = noteFor ? orders.find((o) => o.id === noteFor) : undefined;
 
@@ -103,6 +111,15 @@ export function EquipmentPage({
             onRecordPassing={onRecordPassing}
             onAddNote={setNoteFor}
             onMessageFamily={onMessageFamily}
+          />
+        )}
+        {subTab === "on-hand" && (
+          <OnHandList
+            assets={onHand}
+            patients={patients}
+            vendorName={vendorName}
+            now={now}
+            onAdvance={onAdvanceOnHand}
           />
         )}
         {subTab === "analytics" && (
