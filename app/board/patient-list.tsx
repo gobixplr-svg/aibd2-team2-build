@@ -250,7 +250,14 @@ export function PatientList({
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   <div>
                     <div className="mb-2 text-[9px] uppercase tracking-wide text-muted">
-                      Assets on site
+                      {/* Only delivered-and-not-picked-up items are IN the
+                          home — calling an ordered item "on site" put this
+                          panel out of sync with the vendor and family views. */}
+                      Equipment ·{" "}
+                      {patientOrders
+                        .filter((o) => o.timestamps.delivered && !o.pickup?.completedAt)
+                        .reduce((s, o) => s + o.items.length, 0)}{" "}
+                      of {patientOrders.reduce((s, o) => s + o.items.length, 0)} in the home
                     </div>
                     {patientOrders.length === 0 ? (
                       <div className="text-[11px] text-muted">No orders on file.</div>

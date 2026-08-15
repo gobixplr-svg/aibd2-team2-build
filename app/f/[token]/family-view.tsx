@@ -129,7 +129,14 @@ function friendlyLine(o: FamilyOrder, deceased: boolean): { headline: string; bo
   }
 
   switch (o.state) {
+    // "Ordered" means the vendor hasn't accepted yet — nothing is moving,
+    // so don't tell the family it's on its way. The line flips (and
+    // pulses) the moment the dispatcher taps Accept.
     case "ordered":
+      return {
+        headline: `We're arranging your ${items}`,
+        body: "Your care team has placed the order. This page will update the moment it's on the way.",
+      };
     case "dispatched":
     case "in_transit":
     case "at_risk":
