@@ -107,9 +107,13 @@ export function PatientList({
   }
 
   const q = query.trim().toLowerCase();
+  // Stable census order. The store reads rows unordered (Postgres moves an
+  // updated row to the end of the heap), so without this sort any patient
+  // you touch — Record passing, a note — sinks to the bottom of the list.
   const visible = patients
     .filter((p) => statusFilter === "All" || p.status === statusFilter)
-    .filter((p) => !q || p.label.toLowerCase().includes(q) || p.id.toLowerCase().includes(q));
+    .filter((p) => !q || p.label.toLowerCase().includes(q) || p.id.toLowerCase().includes(q))
+    .sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
 
   const spendByPatient = new Map(
     patients.map((p) => [p.id, dmeSpendFor(orders.filter((o) => o.patientId === p.id))]),
