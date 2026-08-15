@@ -27,12 +27,27 @@ export function EquipmentList({
   vendorName: (id: string) => string;
   onNewOrder: () => void;
   onAddNote: (orderId: string) => void;
-  onMessageFamily: (patientId: string) => void;
+  onMessageFamily: (patientId: string) => Promise<boolean>;
   onRequestReroute: (orderId: string) => void;
 }) {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<string>("All");
+  const [familyStatus, setFamilyStatus] = useState<Record<string, "sending" | "sent" | "error">>(
+    {},
+  );
+
+  async function handleMessageFamily(orderId: string, patientId: string) {
+    setFamilyStatus((s) => ({ ...s, [orderId]: "sending" }));
+    const ok = await onMessageFamily(patientId);
+    setFamilyStatus((s) => ({ ...s, [orderId]: ok ? "sent" : "error" }));
+    setTimeout(() => {
+      setFamilyStatus((s) => {
+        const { [orderId]: _drop, ...rest } = s;
+        return rest;
+      });
+    }, 3000);
+  }
 
   const categories = Array.from(
     new Set(orders.flatMap((o) => o.items.map((it) => categoryOf(it.hcpcs)))),
@@ -178,6 +193,12 @@ export function EquipmentList({
                       <Row label="Deadline" value={deadlineLabel(o.targetAt)} />
                       <Row label="Urgency" value={o.urgency === "stat" ? "STAT" : "Routine"} />
                     </div>
+                    <div className="mt-2.5 rounded-md border border-dashed border-line-strong bg-surface p-3">
+                      <div className="mb-1 text-[9px] uppercase tracking-wide text-muted">Note</div>
+                      <div className="text-[11px] leading-relaxed text-ink-soft">
+                        {o.note || "No notes yet."}
+                      </div>
+                    </div>
                     <div className="mt-3 flex flex-wrap justify-end gap-1.5">
                       <button
                         onClick={() => onAddNote(o.id)}
@@ -186,11 +207,25 @@ export function EquipmentList({
                         Add note
                       </button>
                       <button
-                        onClick={() => onMessageFamily(o.patientId)}
-                        className="rounded-md border border-line-strong bg-surface px-3 py-2 text-[11px] text-ink-soft"
+                        onClick={() => handleMessageFamily(o.id, o.patientId)}
+                        disabled={familyStatus[o.id] === "sending"}
+                        className="rounded-md border border-line-strong bg-surface px-3 py-2 text-[11px] text-ink-soft disabled:opacity-60"
                       >
                         Message family
                       </button>
+                      {familyStatus[o.id] === "sending" && (
+                        <span className="self-center text-[10px] text-muted">Drafting…</span>
+                      )}
+                      {familyStatus[o.id] === "sent" && (
+                        <span className="self-center text-[10px] text-teal">
+                          Draft sent to Approvals ✓
+                        </span>
+                      )}
+                      {familyStatus[o.id] === "error" && (
+                        <span className="self-center text-[10px] text-critical">
+                          Couldn&apos;t send — try again
+                        </span>
+                      )}
                       {(o.state === "at_risk" || o.state === "pickup_delayed") && (
                         <button
                           onClick={() => onRequestReroute(o.id)}
