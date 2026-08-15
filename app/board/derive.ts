@@ -274,23 +274,27 @@ export function topEquipment(orders: Order[], now: number = Date.now()): Equipme
   return Array.from(rows.values()).sort((a, b) => b.count - a.count);
 }
 
-/** Spend-to-date bucketed by equipment category — the honest stand-in
- *  for a monthly trend chart when there's no multi-month history yet. */
-export function spendByCategory(
+/** Spend-to-date bucketed by vendor × category — feeds the Analytics
+ *  heatmap. A bar chart can only show one of those two dimensions at a
+ *  time, which is exactly the "magnitude across a grid" job a heatmap
+ *  is for; sum across vendors if a category-only total is ever needed
+ *  again. */
+export function spendByVendorCategory(
   orders: Order[],
   now: number = Date.now(),
-): { category: string; amount: number }[] {
+): { vendorId: string; category: string; amount: number }[] {
   const totals = new Map<string, number>();
   for (const o of orders) {
     const perItem = orderDmeSpend(o, now) / Math.max(o.items.length, 1);
     for (const it of o.items) {
-      const cat = categoryOf(it.hcpcs);
-      totals.set(cat, (totals.get(cat) ?? 0) + perItem);
+      const key = `${o.vendorId}|${categoryOf(it.hcpcs)}`;
+      totals.set(key, (totals.get(key) ?? 0) + perItem);
     }
   }
-  return Array.from(totals.entries())
-    .map(([category, amount]) => ({ category, amount: Math.round(amount) }))
-    .sort((a, b) => b.amount - a.amount);
+  return Array.from(totals.entries()).map(([key, amount]) => {
+    const [vendorId, category] = key.split("|");
+    return { vendorId, category, amount: Math.round(amount) };
+  });
 }
 
 export interface LengthOfUseRow {
