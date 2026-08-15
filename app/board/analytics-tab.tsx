@@ -37,8 +37,11 @@ export function AnalyticsTab({
 
   const scoped = vendorFilter === "All" ? orders : orders.filter((o) => o.vendorId === vendorFilter);
 
-  const totalSpend = dmeSpendFor(scoped);
-  const totalPatientDays = patients.reduce((s, p) => s + patientDaysOnCensus(p, scoped), 0);
+  // Every duration-based figure below must use ENGINE time (state.now),
+  // never the wall clock — demo timestamps run ahead of real time, and a
+  // wall-clock "now" clamps days-on-rent to zero, freezing all spend at $0.
+  const totalSpend = dmeSpendFor(scoped, now);
+  const totalPatientDays = patients.reduce((s, p) => s + patientDaysOnCensus(p, scoped, now), 0);
   const costPerPatientDay = totalPatientDays > 0 ? totalSpend / totalPatientDays : null;
 
   // Cost-of-care visibility (bounty Required Features, hospice side):
@@ -53,7 +56,7 @@ export function AnalyticsTab({
   const delivered = scoped.filter((o) => o.timestamps.delivered);
   const avgDaysOnDme =
     delivered.length > 0
-      ? delivered.reduce((s, o) => s + daysOnRent(o), 0) / delivered.length
+      ? delivered.reduce((s, o) => s + daysOnRent(o, now), 0) / delivered.length
       : 0;
 
   // now is engine time (state.now from /api/state) — must match what the
@@ -62,11 +65,11 @@ export function AnalyticsTab({
   const idleDays = postPickupIdleDays(scoped, now);
   const idleCost = postPickupIdleCost(scoped, now);
 
-  const categories = useMemo(() => spendByCategory(scoped), [scoped]);
+  const categories = useMemo(() => spendByCategory(scoped, now), [scoped, now]);
   const maxCategory = Math.max(1, ...categories.map((c) => c.amount));
-  const topItems = useMemo(() => topEquipment(scoped).slice(0, 6), [scoped]);
+  const topItems = useMemo(() => topEquipment(scoped, now).slice(0, 6), [scoped, now]);
   const maxCount = Math.max(1, ...topItems.map((i) => i.count));
-  const losRows = useMemo(() => lengthOfUseRows(scoped), [scoped]);
+  const losRows = useMemo(() => lengthOfUseRows(scoped, now), [scoped, now]);
   const maxAvgDays = Math.max(1, ...losRows.map((r) => r.avgDays));
   const vendorPerf = useMemo(() => vendorPerformance(scoped, vendors), [scoped, vendors]);
 
