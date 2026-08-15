@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type {
   InboxItem as EngineInboxItem,
+  OnHandAsset,
   Order,
   Patient,
   Vendor,
@@ -34,6 +35,7 @@ interface WorldState {
   orders: Order[];
   patients: Patient[];
   vendors: Vendor[];
+  onHand: OnHandAsset[];
   inbox: EngineInboxItem[];
   money: { pickupOverdueUsd: number };
 }
@@ -79,7 +81,7 @@ export function HospicePortal() {
   if (!state)
     return <div className="min-h-dvh bg-page" />;
 
-  const { orders, patients, vendors } = state;
+  const { orders, patients, vendors, onHand } = state;
   const now = new Date(state.now).getTime();
   const inbox = toPortalInbox(state.inbox);
   const vendorName = (id: string) => vendors.find((v) => v.id === id)?.name ?? id;
@@ -120,6 +122,11 @@ export function HospicePortal() {
       title: `Reroute ${order.id} to backup vendor?`,
       detail: `${order.patientLabel} — ${order.items.map((i) => i.name).join(", ")}, currently with ${vendorName(order.vendorId)}. Reroute posts here as an approval; a person still taps it.`,
     });
+    refresh();
+  }
+
+  async function advanceOnHand(assetId: string, patientId?: string) {
+    await postJson(`/api/on-hand/${assetId}`, { action: "advance", patientId });
     refresh();
   }
 
@@ -216,6 +223,7 @@ export function HospicePortal() {
             orders={orders}
             patients={patients}
             vendors={vendors}
+            onHand={onHand}
             now={now}
             vendorName={vendorName}
             onNewOrder={(patientId) => {
@@ -226,6 +234,7 @@ export function HospicePortal() {
             onMessageFamily={messageFamily}
             onRequestReroute={requestReroute}
             onRecordPassing={(patientId) => setDeceasedFor(patientId)}
+            onAdvanceOnHand={advanceOnHand}
           />
         )}
         {tab === "emr" && (

@@ -17,7 +17,7 @@
 // guessed, the constant says so.
 // ─────────────────────────────────────────────────────────────
 
-import type { Order, OrderItem, Patient, Vendor } from "@/lib/contracts";
+import type { OnHandAsset, OnHandState, Order, OrderItem, Patient, Vendor } from "@/lib/contracts";
 import { EQUIPMENT } from "@/lib/data/catalog";
 
 // ── Deterministic PRNG (mulberry32) ──────────────────────────
@@ -452,12 +452,60 @@ export function buildHistory(now: number, patients: SeededPatient[]): Order[] {
   return out;
 }
 
+// ── On-hand (consignment) inventory — build-plan item 10 ─────
+// Small/portable stock the hospice keeps on-site, vendor-owned. A
+// curated set (like buildLiveOrders, not bulk-randomized like
+// buildHistory) so each row demos a distinct point in the cycle rather
+// than a wall of identical "on_hand" rows.
+
+function buildOnHandAssets(now: number, patients: SeededPatient[]): OnHandAsset[] {
+  const active = (id: string) => patients.find((p) => p.id === id)?.status === "active";
+  const asset = (
+    id: string,
+    hcpcs: string,
+    vendorId: string,
+    state: OnHandState,
+    daysAgo: number,
+    patientId?: string,
+  ): OnHandAsset => ({
+    id,
+    hcpcs,
+    vendorId,
+    state,
+    ...(patientId && active(patientId) ? { patientId } : {}),
+    updatedAt: iso(now - daysAgo * D),
+  });
+
+  return [
+    // K0001 — standard wheelchair
+    asset("OH-K0001-01", "K0001", "v1", "on_hand", 12),
+    asset("OH-K0001-02", "K0001", "v1", "on_hand", 3),
+    asset("OH-K0001-03", "K0001", "v2", "deployed", 6, "p6"),
+
+    // E1130 — wheelchair, detachable arms
+    asset("OH-E1130-01", "E1130", "v1", "on_hand", 20),
+    asset("OH-E1130-02", "E1130", "v2", "pending_pickup", 1),
+
+    // E0143 — folding walker
+    asset("OH-E0143-01", "E0143", "v1", "on_hand", 8),
+    asset("OH-E0143-02", "E0143", "v1", "on_hand", 30),
+    asset("OH-E0143-03", "E0143", "v2", "deployed", 4, "p10"),
+    asset("OH-E0143-04", "E0143", "v2", "maintenance", 2),
+
+    // E0163 — commode chair
+    asset("OH-E0163-01", "E0163", "v1", "on_hand", 15),
+    asset("OH-E0163-02", "E0163", "v2", "on_hand", 5),
+    asset("OH-E0163-03", "E0163", "v1", "in_transit_return", 0.5),
+  ];
+}
+
 // ── Entry point ──────────────────────────────────────────────
 
 export interface Seed {
   patients: Patient[];
   vendors: Vendor[];
   orders: Order[];
+  onHand: OnHandAsset[];
 }
 
 /**
@@ -479,5 +527,6 @@ export function buildSeed(now: number): Seed {
     patients,
     vendors: buildVendors(),
     orders: [...buildLiveOrders(now), ...buildHistory(now, seeded)],
+    onHand: buildOnHandAssets(now, seeded),
   };
 }

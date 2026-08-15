@@ -101,6 +101,41 @@ export interface Patient {
   status: "active" | "discharged" | "deceased";
 }
 
+// ── On-hand (consignment) inventory — build-plan item 10 ─────
+// Small/portable equipment (walkers, wheelchairs, commodes) a hospice
+// keeps on-site as vendor-owned stock, as distinct from equipment on an
+// Order dispatched from a vendor's own warehouse. Vendor retains title
+// throughout; the hospice can't profit on it, and the patient keeps
+// vendor choice. A single cycle, one legal next state each — no branching:
+export type OnHandState =
+  | "at_warehouse"
+  | "in_transit"
+  | "on_hand"
+  | "deployed"
+  | "pending_pickup"
+  | "in_transit_return"
+  | "maintenance";
+
+export const ON_HAND_CYCLE: Record<OnHandState, OnHandState> = {
+  at_warehouse: "in_transit",
+  in_transit: "on_hand",
+  on_hand: "deployed",
+  deployed: "pending_pickup",
+  pending_pickup: "in_transit_return",
+  in_transit_return: "maintenance",
+  maintenance: "at_warehouse",
+};
+
+export interface OnHandAsset {
+  id: string;
+  hcpcs: string; // must be catalog.isConsignmentEligible
+  vendorId: string; // title holder throughout
+  state: OnHandState;
+  patientId?: string; // set only while deployed (through its return trip)
+  updatedAt: string; // ISO — when this state was entered
+  note?: string;
+}
+
 // eRx-shaped event (mirrors the FAQ payload pattern: meta.eventType + payload)
 export interface HandoffEvent {
   meta: { eventType: string; at: string };

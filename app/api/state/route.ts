@@ -18,6 +18,7 @@ import {
   getInbox,
   getLedger,
   getMessages,
+  getOnHandAssets,
   getOrders,
   getPatients,
   getVendors,
@@ -35,13 +36,14 @@ export async function GET(req: Request) {
     const token = searchParams.get("token");
 
     const { now, world } = await engineNowWithWorld();
-    const [orders, vendors, patients, inbox, ledger, messages] = await Promise.all([
+    const [orders, vendors, patients, inbox, ledger, messages, onHand] = await Promise.all([
       getOrders(),
       getVendors(),
       getPatients(),
       getInbox(),
       getLedger(200),
       getMessages(),
+      getOnHandAssets(),
     ]);
 
     // Historical orders exist for vendor stats, not for rendering.
@@ -158,6 +160,7 @@ export async function GET(req: Request) {
       orders: live,
       vendors,
       patients,
+      onHand,
       inbox: inbox.sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
       messages: messages.sort((a, b) =>
         b.receivedAt.localeCompare(a.receivedAt),

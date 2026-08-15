@@ -25,6 +25,11 @@ export interface CatalogItem {
   highCost?: boolean; // routes to DON approval (a persona they named)
   oxygen?: boolean;      // actual oxygen therapy (concentrator, portable)
   respiratory?: boolean; // oxygen OR positive-airway-pressure — delay is a safety issue
+  // Small/portable formulary hospices commonly hold on-site as vendor-owned
+  // consignment stock (build-plan item 10). Beds, pressure mattresses,
+  // concentrators, and lifts stay warehouse-dispatched — never on-hand,
+  // per the doc's own correction of an earlier draft's mistake here.
+  consignmentEligible?: boolean;
   claimsPerYear?: number; // national volume — drives seed weighting
 }
 
@@ -53,12 +58,12 @@ export const CATALOG: CatalogItem[] = [
   { hcpcs: "E0470", name: "BiPAP respiratory assist", monthly: 91, respiratory: true, highCost: true, claimsPerYear: 535_000 },
 
   // Mobility.
-  { hcpcs: "K0001", name: "Standard wheelchair", monthly: 19, claimsPerYear: 1_290_000 },
-  { hcpcs: "E1130", name: "Standard wheelchair (detachable arms)", monthly: 19 },
-  { hcpcs: "E0143", name: "Folding walker, wheeled", monthly: 49, claimsPerYear: 493_000 },
+  { hcpcs: "K0001", name: "Standard wheelchair", monthly: 19, claimsPerYear: 1_290_000, consignmentEligible: true },
+  { hcpcs: "E1130", name: "Standard wheelchair (detachable arms)", monthly: 19, consignmentEligible: true },
+  { hcpcs: "E0143", name: "Folding walker, wheeled", monthly: 49, claimsPerYear: 493_000, consignmentEligible: true },
 
   // Comfort / skin integrity.
-  { hcpcs: "E0163", name: "Commode chair", monthly: 52, claimsPerYear: 135_000 },
+  { hcpcs: "E0163", name: "Commode chair", monthly: 52, claimsPerYear: 135_000, consignmentEligible: true },
   { hcpcs: "E0277", name: "Powered pressure-reducing mattress", monthly: 162, highCost: true, claimsPerYear: 31_000 },
 ];
 
@@ -77,6 +82,15 @@ export const isOxygen = (hcpcs: string) => EQUIPMENT[hcpcs]?.oxygen === true;
  *  either is still a patient-safety question rather than a service one. */
 export const isRespiratory = (hcpcs: string) =>
   EQUIPMENT[hcpcs]?.respiratory === true;
+
+/** True when a hospice can lawfully hold this on-site as vendor-owned
+ *  consignment stock. False for anything warehouse-dispatched-only. */
+export const isConsignmentEligible = (hcpcs: string) =>
+  EQUIPMENT[hcpcs]?.consignmentEligible === true;
+
+export const CONSIGNMENT_ELIGIBLE_CODES = CATALOG.filter(
+  (c) => c.consignmentEligible,
+).map((c) => c.hcpcs);
 
 /** Items on this order that need the director of nursing to sign off. */
 export const donItems = (hcpcs: string[]) =>

@@ -12,6 +12,7 @@ import {
   DEFAULT_WORLD,
   getOrders,
   isPersistent,
+  putOnHandAssets,
   putOrders,
   putPatients,
   putVendors,
@@ -42,6 +43,7 @@ export async function POST(req: Request) {
     await putPatients(seed.patients);
     await putVendors(seed.vendors);
     await putOrders(seed.orders);
+    await putOnHandAssets(seed.onHand);
 
     return NextResponse.json({
       ok: true,
@@ -50,6 +52,7 @@ export async function POST(req: Request) {
         patients: seed.patients.length,
         vendors: seed.vendors.length,
         orders: seed.orders.length,
+        onHand: seed.onHand.length,
       },
       at: new Date(realNow).toISOString(),
     });

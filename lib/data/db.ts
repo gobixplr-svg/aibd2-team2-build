@@ -22,6 +22,7 @@ import type {
   HandoffEvent,
   InboundMessage,
   InboxItem,
+  OnHandAsset,
   Order,
   Outcome,
   Patient,
@@ -83,6 +84,7 @@ const DOC_TABLES = [
   "outcomes",
   "messages",
   "world",
+  "on_hand",
 ] as const;
 
 const LOG_TABLES = ["events", "ledger"] as const;
@@ -205,6 +207,11 @@ export const getVendors = () => all<Vendor>("vendors");
 export const getVendor = (id: string) => one<Vendor>("vendors", id);
 export const putVendor = (v: Vendor) => put("vendors", v);
 export const putVendors = (v: Vendor[]) => putMany("vendors", v);
+
+export const getOnHandAssets = () => all<OnHandAsset>("on_hand");
+export const getOnHandAsset = (id: string) => one<OnHandAsset>("on_hand", id);
+export const putOnHandAsset = (a: OnHandAsset) => put("on_hand", a);
+export const putOnHandAssets = (a: OnHandAsset[]) => putMany("on_hand", a);
 
 export const getInbox = () => all<InboxItem>("inbox");
 export const putInboxItem = (i: InboxItem) => put("inbox", i);
