@@ -177,17 +177,32 @@ export function StagePage() {
   return (
     <div className="flex h-dvh flex-col bg-page">
       <div className="flex min-h-0 flex-1 gap-2 p-2">
-        <div className="flex min-w-0 flex-[3] flex-col overflow-hidden rounded-lg border border-line bg-surface">
-          <PanelLabel label="Hospice — /board" />
+        <div className="flex min-w-0 flex-[3] flex-col overflow-hidden rounded-lg border-2 border-navy bg-surface">
+          <PanelLabel
+            icon="🏥"
+            who="HOSPICE"
+            detail="case manager's board · laptop"
+            accent="bg-navy"
+          />
           <iframe src="/board" title="Hospice board" className="h-full w-full flex-1 border-0" />
         </div>
         <div className="flex w-[340px] shrink-0 flex-col gap-2 md:w-[380px]">
-          <div className="flex min-h-0 flex-[3] flex-col overflow-hidden rounded-lg border border-line bg-surface">
-            <PanelLabel label="Vendor phone — /v/demo-vendor" />
+          <div className="flex min-h-0 flex-[3] flex-col overflow-hidden rounded-lg border-2 border-teal bg-surface">
+            <PanelLabel
+              icon="🚚"
+              who="DME VENDOR"
+              detail="dispatcher's phone · magic link, no login"
+              accent="bg-teal"
+            />
             <iframe src="/v/demo-vendor" title="Vendor dispatch" className="h-full w-full flex-1 border-0" />
           </div>
-          <div className="flex min-h-0 flex-[2] flex-col overflow-hidden rounded-lg border border-line bg-surface">
-            <PanelLabel label="Family — /f/demo-family" />
+          <div className="flex min-h-0 flex-[2] flex-col overflow-hidden rounded-lg border-2 border-brand bg-surface">
+            <PanelLabel
+              icon="👪"
+              who="FAMILY"
+              detail="read-only link, texted to them"
+              accent="bg-brand"
+            />
             <iframe src="/f/demo-family" title="Family tracker" className="h-full w-full flex-1 border-0" />
           </div>
         </div>
@@ -267,10 +282,25 @@ export function StagePage() {
   );
 }
 
-function PanelLabel({ label }: { label: string }) {
+function PanelLabel({
+  icon,
+  who,
+  detail,
+  accent,
+}: {
+  icon: string;
+  who: string;
+  detail: string;
+  accent: string;
+}) {
   return (
-    <div className="border-b border-line bg-page px-2 py-0.5 text-[9px] uppercase tracking-wide text-muted">
-      {label}
+    <div className={`flex items-center gap-2 px-3 py-1.5 text-white ${accent}`}>
+      <span className="text-sm leading-none">{icon}</span>
+      <span className="text-xs font-bold tracking-wider">{who}</span>
+      <span className="text-[11px] text-white/75">{detail}</span>
+      <span className="ml-auto rounded-sm bg-white/15 px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-white/80">
+        separate window · same live system
+      </span>
     </div>
   );
 }

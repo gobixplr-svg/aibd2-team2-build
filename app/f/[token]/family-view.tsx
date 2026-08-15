@@ -1,6 +1,7 @@
 "use client";
 
 import type { OrderState, Patient } from "@/lib/contracts";
+import { Pulse } from "@/lib/pulse";
 import { useWorld } from "@/lib/use-world";
 
 interface FamilyOrder {
@@ -53,12 +54,12 @@ export function FamilyView({ token }: { token: string }) {
           {orders.map((o) => {
             const line = friendlyLine(o, deceased);
             return (
-              <div key={o.id} className="rounded-lg bg-surface border border-line p-4">
+              <Pulse key={o.id} watch={line.headline} className="rounded-lg bg-surface border border-line p-4">
                 <div className="text-sm font-semibold text-ink leading-snug">
                   {line.headline}
                 </div>
                 <p className="mt-1.5 text-sm leading-relaxed text-ink-soft">{line.body}</p>
-              </div>
+              </Pulse>
             );
           })}
         </div>

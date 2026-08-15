@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { Order } from "@/lib/contracts";
+import { Pulse } from "@/lib/pulse";
 import { categoryOf } from "@/lib/data/catalog";
 import {
   PILL_CLASS,
@@ -98,7 +99,7 @@ export function EquipmentList({
       {sorted.map((o) => {
         const isOpen = expanded === o.id;
         return (
-          <div key={o.id}>
+          <Pulse key={o.id} watch={`${o.state}:${o.risk?.score ?? ""}:${o.etaAt ?? ""}`}>
             <button
               onClick={() => setExpanded(isOpen ? null : o.id)}
               className="grid w-full grid-cols-[14px_1.05fr_.7fr_.95fr_.85fr_.85fr_18px] items-center gap-2.5 border-b border-line py-3 text-left text-[11px] text-ink"
@@ -203,7 +204,7 @@ export function EquipmentList({
                 </div>
               </div>
             )}
-          </div>
+          </Pulse>
         );
       })}
 

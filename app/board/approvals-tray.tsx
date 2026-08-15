@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { INBOX_KIND_LABEL, type InboxItem } from "./derive";
+import { Pulse } from "@/lib/pulse";
 
 // Header tray (wireframe turn 3, 3a): approvals apply across all three
 // Equipment sub-tabs, so they moved out of the Equipment rail (turn 2)
@@ -51,7 +52,7 @@ export function ApprovalsTray({
               </div>
             ) : (
               openApprovals.map((a) => (
-                <div key={a.id} className="border-b border-line py-2 last:border-b-0">
+                <Pulse key={a.id} watch={a.detail} className="border-b border-line py-2 last:border-b-0">
                   <div className="flex items-baseline gap-2">
                     <span className="text-[9px] uppercase tracking-wide text-muted">
                       {INBOX_KIND_LABEL[a.kind]}
@@ -92,7 +93,7 @@ export function ApprovalsTray({
                       Dismiss
                     </button>
                   </div>
-                </div>
+                </Pulse>
               ))
             )}
           </div>
