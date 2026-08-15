@@ -103,10 +103,40 @@ export async function POST(req: Request, ctx: RouteContext<"/api/inbox/[id]">) {
       if (vendorName) executed = `Executed: rerouted to ${vendorName}.`;
     }
 
+    // A family's own words reach vendor dispatch only after a human
+    // approves them — the order note is the relay, and the vendor card
+    // already renders it. Distress messages never leave the care team.
+    let relayed: string | undefined;
+    if (
+      action === "approve" &&
+      item.source === "family_message" &&
+      item.orderId &&
+      item.proposedAction !== "escalate_on_call_nurse"
+    ) {
+      const order = await getOrder(item.orderId);
+      if (order) {
+        const request = item.detail.replace(/^"+|"+$/g, "");
+        const note = `Family request (care team approved): ${request}`;
+        await putOrder({
+          ...order,
+          note: order.note ? `${order.note} · ${note}` : note,
+        });
+        await appendEvent({
+          meta: { eventType: "familyRequestRelayed", at: nowIso },
+          account: { identifiers: [{ id: order.patientId }] },
+          payload: { orderId: order.id, request },
+        });
+        relayed = "Relayed to vendor dispatch as an order note.";
+      }
+    }
+
+    const extraReasons = [executed, relayed].filter(
+      (r): r is string => Boolean(r),
+    );
     const next = {
       ...item,
       draft: action === "approve" && draft !== undefined ? draft : item.draft,
-      reasons: executed ? [...item.reasons, executed] : item.reasons,
+      reasons: extraReasons.length ? [...item.reasons, ...extraReasons] : item.reasons,
       status: action === "approve" ? ("approved" as const) : ("rejected" as const),
       resolvedAt: nowIso,
       resolvedBy: resolvedBy ?? "case-manager",

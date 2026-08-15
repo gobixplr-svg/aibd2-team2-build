@@ -426,7 +426,7 @@ function OrderCard({
   const pickedUp = !!order.pickup?.completedAt;
   return (
     <Pulse
-      watch={`${order.state}:${order.etaAt ?? ""}:${order.pickup?.acknowledgedAt ?? ""}:${order.pickup?.windowStart ?? ""}`}
+      watch={`${order.state}:${order.etaAt ?? ""}:${order.pickup?.acknowledgedAt ?? ""}:${order.pickup?.windowStart ?? ""}:${order.note ?? ""}`}
       className={`rounded-lg bg-surface border border-line p-3 shadow-sm ${done ? "opacity-80" : ""}`}
     >
       <div className="flex items-center gap-2 flex-wrap">
