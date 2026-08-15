@@ -36,7 +36,13 @@ export default function Home() {
             href="/f/demo-family"
             title="Family tracker"
             who="family, read-only"
-            note="coming Sat — Dan"
+            note="live"
+          />
+          <Surface
+            href="/snapshot"
+            title="Differentiation snapshot"
+            who="judges — Deliverable C"
+            note="market landscape · verified white space · why it matters"
           />
         </nav>
 
