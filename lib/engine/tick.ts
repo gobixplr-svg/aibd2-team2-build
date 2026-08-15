@@ -47,7 +47,7 @@ import {
   putWorld,
 } from "@/lib/data/db";
 import { transition } from "@/lib/engine/transition";
-import { triage } from "@/lib/engine/triage";
+import { triage, type TriagedAction } from "@/lib/engine/triage";
 
 const MIN = 60_000;
 const H = 3_600_000;
@@ -508,14 +508,42 @@ export async function tick(now: number): Promise<TickResult> {
   // triage() never throws. Toggle off, no key, timeout, refusal, bad
   // output — all of them return the deterministic ranking and the tick
   // continues. The rules-only path is always the floor.
-  const triaged = await triage(
-    screened.map((s) => ({
-      features: s.features,
-      codes: s.reasonCodes,
-      score: s.score,
-    })),
-    policy.useAiTriage,
-  );
+  //
+  // Cheap guard first: if the flagged set and their reason codes are
+  // identical to the last heartbeat, nothing has changed that stage 3
+  // could reason differently about. Reuse the previous ranking and skip
+  // the call entirely.
+  //
+  // This is what makes "cost scales with at-risk orders, not tick
+  // frequency" actually true. Without it a 5-minute cron re-triages an
+  // unchanged world ~288 times a day — about $5 to sit still, and the
+  // overnight story ("it's watching at 2 AM") becomes the expensive case
+  // instead of the free one.
+  const fingerprint = screened
+    .map((s) => `${s.order.id}:${[...s.reasonCodes].sort().join(",")}`)
+    .sort()
+    .join("|");
+
+  const memo = world.lastTriage;
+  const unchanged =
+    screened.length > 0 && memo?.fingerprint === fingerprint;
+
+  const triaged = unchanged
+    ? {
+        actions: memo!.actions as unknown as TriagedAction[],
+        aiUsed: false,
+        fallbackReason: "unchanged_since_last_tick" as const,
+        ledger: undefined,
+      }
+    : await triage(
+        screened.map((s) => ({
+          features: s.features,
+          codes: s.reasonCodes,
+          score: s.score,
+        })),
+        policy.useAiTriage,
+      );
+
   const aiUsed = triaged.aiUsed;
   if (triaged.ledger) await appendLedger(triaged.ledger);
   const byOrder = new Map(triaged.actions.map((a) => [a.orderId, a]));
@@ -523,6 +551,7 @@ export async function tick(now: number): Promise<TickResult> {
   // ── stage 4 + 5 ──
   const touched: Order[] = [];
   const newItems: InboxItem[] = [];
+  const updated: InboxItem[] = [];
   const nowIso = new Date(now).toISOString();
 
   for (const s of screened) {
@@ -574,21 +603,38 @@ export async function tick(now: number): Promise<TickResult> {
         ? { ...base, tier: ai.tier, proposedAction: ai.action }
         : base;
 
-    // Dedup across ALL statuses, not just pending. Reversible actions
-    // are created already-executed, so a pending-only check meant every
-    // tick minted another "nudge vendor" — three ticks, three identical
-    // rows, and a nurse's inbox buried by the thing meant to help her.
-    // Rejected is the one exception: if a human said no, a later tick
-    // may legitimately re-propose.
-    const dupe = inbox
+    // ONE open Hermes row per order, not one per (order, action).
+    //
+    // Keying on proposedAction looked right until the model ran twice:
+    // stage 3 legitimately picks a slightly different action on a
+    // re-rank, the key changes, and a second row appears for the same
+    // problem. Four ticks, four rows, one actual issue — the inbox grows
+    // forever while the world sits still.
+    //
+    // Rejected is the exception: if a human said no, a later heartbeat
+    // may legitimately propose again.
+    const open = inbox
       .concat(newItems)
-      .some(
+      .find(
         (i) =>
           i.orderId === s.order.id &&
-          i.proposedAction === proposal.proposedAction &&
+          i.source === "hermes" &&
           i.status !== "rejected",
       );
-    if (dupe) continue;
+    if (open) {
+      // Refresh the reasoning in place if the situation moved on, so the
+      // nurse reads current numbers rather than a stale snapshot.
+      if (open.proposedAction !== proposal.proposedAction) {
+        updated.push({
+          ...open,
+          ...proposal,
+          reasons,
+          reasonCodes: s.reasonCodes,
+          features: s.features,
+        });
+      }
+      continue;
+    }
 
     newItems.push({
       id: `inbox-${s.order.id}-${proposal.proposedAction}-${now}`,
@@ -625,8 +671,26 @@ export async function tick(now: number): Promise<TickResult> {
 
   if (touched.length) await putOrders(touched);
   if (newItems.length) await putInboxItems(newItems);
+  if (updated.length) await putInboxItems(updated);
 
-  await putWorld({ ...world, lastTickAt: nowIso });
+  await putWorld({
+    ...world,
+    lastTickAt: nowIso,
+    lastTriage: screened.length
+      ? {
+          fingerprint,
+          at: nowIso,
+          actions: triaged.actions.map((a) => ({
+            orderId: a.orderId,
+            action: a.action,
+            tier: a.tier,
+            rank: a.rank,
+            rationale: a.rationale,
+            confidence: a.confidence,
+          })),
+        }
+      : undefined,
+  });
   await appendEvent({
     meta: { eventType: "hermesTick", at: nowIso },
     account: { identifiers: [{ id: "system" }] },

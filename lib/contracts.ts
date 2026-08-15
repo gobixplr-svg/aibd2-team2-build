@@ -286,6 +286,22 @@ export interface World {
   clock: WorldClock;
   policy: Policy;
   lastTickAt?: string;
+  // Stage 3 is skipped when the flagged set hasn't materially changed
+  // since the last heartbeat. Without this a 5-minute cron re-triages an
+  // unchanged world ~288 times a day — which both wastes money and makes
+  // "cost scales with at-risk orders, not tick frequency" untrue.
+  lastTriage?: {
+    fingerprint: string; // orderId + reason codes, sorted
+    at: string;
+    actions: {
+      orderId: string;
+      action: string;
+      tier: ActionTier;
+      rank: number;
+      rationale: string;
+      confidence: number;
+    }[];
+  };
 }
 
 // ── Outcome + calibration ────────────────────────────────────
