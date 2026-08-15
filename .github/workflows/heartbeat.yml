@@ -1,0 +1,51 @@
+name: Hermes heartbeat
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: hermes-heartbeat
+  cancel-in-progress: false
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Beat
+        env:
+          SECRET: ${{ secrets.HERMES_SECRET }}
+          APP: https://aibd2-team2-build.vercel.app
+        run: |
+          if [ -z "$SECRET" ]; then
+            echo "::error::HERMES_SECRET is not set in repo secrets — the guard will 403."
+            exit 1
+          fi
+
+          body=$(curl -sS --max-time 60 --retry 2 --retry-delay 5 \
+            -X POST "$APP/api/tick" \
+            -H "x-hermes-secret: $SECRET" \
+            -w '\n%{http_code}')
+
+          code=$(printf '%s' "$body" | tail -n1)
+          json=$(printf '%s' "$body" | sed '$d')
+
+          echo "$json"
+
+          if [ "$code" != "200" ]; then
+            echo "::error::tick returned HTTP $code"
+            exit 1
+          fi
+
+          scanned=$(printf '%s' "$json"     | sed -n 's/.*"scanned":\([0-9]*\).*/\1/p')
+          interesting=$(printf '%s' "$json" | sed -n 's/.*"interesting":\([0-9]*\).*/\1/p')
+          ai=$(printf '%s' "$json"          | sed -n 's/.*"aiUsed":\([a-z]*\).*/\1/p')
+          cost=$(printf '%s' "$json"        | sed -n 's/.*"costUsd":\([0-9.]*\).*/\1/p')
+
+          echo "### Hermes beat" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| scanned | interesting | AI | cost |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| ${scanned:-?} | ${interesting:-?} | ${ai:-?} | \$${cost:-0} |" >> "$GITHUB_STEP_SUMMARY"
