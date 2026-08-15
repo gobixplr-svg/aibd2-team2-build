@@ -10,7 +10,7 @@ interface FamilyOrder {
   items: string[];
   targetAt: string;
   etaAt?: string;
-  pickup?: { dueAt: string; windowStart?: string; windowEnd?: string };
+  pickup?: { dueAt: string; windowStart?: string; windowEnd?: string; completedAt?: string };
 }
 
 interface CareMessage {
@@ -116,6 +116,17 @@ function friendlyLine(o: FamilyOrder, deceased: boolean): { headline: string; bo
   const items = o.items.map((n) => n.toLowerCase()).join(" and ");
   const t = (iso: string, opts: Intl.DateTimeFormatOptions) =>
     new Date(iso).toLocaleString([], opts);
+
+  // Completion lives on the pickup record, not order.state — check it
+  // first or the family reads "scheduled" forever after the truck left.
+  if (o.pickup?.completedAt) {
+    return {
+      headline: `The ${items} has been picked up`,
+      body: deceased
+        ? "Everything is taken care of — there is nothing more you need to do. Thank you for letting us care for your family."
+        : "All done — there's nothing more you need to do.",
+    };
+  }
 
   switch (o.state) {
     case "ordered":

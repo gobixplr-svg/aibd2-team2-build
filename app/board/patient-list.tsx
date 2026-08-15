@@ -11,6 +11,7 @@ import {
   openDmeLabel,
   orderDailyRate,
   PILL_CLASS,
+  pillFor,
   postPickupIdleCost,
   STATE_LABEL,
   type InboxItem,
@@ -268,9 +269,9 @@ export function PatientList({
                                   {Math.round(daysOnRent(o))} d · ${Math.round(orderDailyRate(o) * 30)}/mo
                                 </span>
                                 <span
-                                  className={`rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${PILL_CLASS[o.state]}`}
+                                  className={`rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${pillFor(o).className}`}
                                 >
-                                  {o.state === "pickup_triggered" ? "Pickup triggered" : o.state.replace(/_/g, " ")}
+                                  {pillFor(o).label}
                                 </span>
                               </div>
                             ))}

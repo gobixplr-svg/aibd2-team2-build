@@ -42,6 +42,15 @@ export const PILL_CLASS: Record<OrderState, string> = {
   pickup_delayed: "bg-critical text-white",
 };
 
+/** Status pill, completion-aware: pickup completion never writes
+ *  order.state (it lives on order.pickup.completedAt), so derive the
+ *  label here instead of leaving "Pickup due" up after the truck left. */
+export function pillFor(order: Order): { label: string; className: string } {
+  if (order.pickup?.completedAt)
+    return { label: "Picked up", className: PILL_CLASS.delivered };
+  return { label: STATE_LABEL[order.state], className: PILL_CLASS[order.state] };
+}
+
 /** Order's true deadline: pickup SLA once triggered, else the delivery target. */
 export function effectiveDeadline(order: Order): string {
   return order.pickup?.dueAt ?? order.targetAt;
