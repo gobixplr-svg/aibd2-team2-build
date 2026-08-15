@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useState } from "react";
-import type { Order, OrderState, Patient } from "@/lib/contracts";
+import type { Order, OrderState, Patient, Vendor } from "@/lib/contracts";
 
 // DME Tracker — patterned after Qualis, the leading third-party DME
 // integration for Homecare Homebase (HCHB has no native DME module of
@@ -51,25 +51,67 @@ const ADT_EVENTS = [
   { type: "deceased", label: "Mark deceased", to: "deceased" as const },
 ];
 
+// Real Qualis vendors split into two tiers: ones that log into the portal
+// to confirm orders and post status themselves, and ones an office still
+// has to phone or email — "the quality of your DME tracking is only as
+// good as your vendors' participation." We already model this exact split
+// as Vendor.connected; it just wasn't surfaced in this tracker before.
+function VendorBadge({ connected }: { connected: boolean }) {
+  return connected ? (
+    <span
+      className="ml-1.5 rounded-full px-1.5 py-0.5 text-[8.5px] font-semibold uppercase tracking-wide"
+      style={{ background: HCHB.powder, color: HCHB.navy }}
+    >
+      Portal
+    </span>
+  ) : (
+    <span className="ml-1.5 rounded-full border border-line-strong px-1.5 py-0.5 text-[8.5px] font-semibold uppercase tracking-wide text-muted">
+      Phone/email only
+    </span>
+  );
+}
+
 export function EmrTab({
   patients,
   orders,
+  vendors,
   vendorName,
   log,
   onFire,
+  onRequestPickup,
 }: {
   patients: Patient[];
   orders: Order[];
+  vendors: Vendor[];
   vendorName: (id: string) => string;
   log: string[];
   onFire: (patient: Patient, type: string, to: Patient["status"]) => void;
+  onRequestPickup: (orderId: string) => void;
 }) {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [serviceFlags, setServiceFlags] = useState<Record<string, string>>({});
+  const [orderLog, setOrderLog] = useState<string[]>([]);
+
+  function logOrderEvent(line: string) {
+    const time = new Date().toLocaleTimeString([], {
+      hour: "numeric",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+    setOrderLog((l) => [`${time} ${line}`, ...l].slice(0, 8));
+  }
 
   function flagServiceIssue(order: Order) {
     const note = window.prompt(`Service issue — ${order.patientLabel} · ${order.id}`, "");
-    if (note) setServiceFlags((f) => ({ ...f, [order.id]: note }));
+    if (note) {
+      setServiceFlags((f) => ({ ...f, [order.id]: note }));
+      logOrderEvent(`Service issue flagged · ${order.id} · ${order.patientLabel} — "${note}"`);
+    }
+  }
+
+  function requestPickup(order: Order) {
+    onRequestPickup(order.id);
+    logOrderEvent(`Pickup requested · ${order.id} · ${order.patientLabel}`);
   }
 
   return (
@@ -142,7 +184,12 @@ export function EmrTab({
                         </td>
                         <td className="px-3 py-2.5">{o.patientLabel}</td>
                         <td className="px-3 py-2.5">
-                          <div>{vendorName(o.vendorId)}</div>
+                          <div className="flex items-center whitespace-nowrap">
+                            {vendorName(o.vendorId)}
+                            <VendorBadge
+                              connected={vendors.find((v) => v.id === o.vendorId)?.connected ?? true}
+                            />
+                          </div>
                         </td>
                         <td className="px-3 py-2.5">
                           {o.urgency === "stat" ? (
@@ -159,17 +206,31 @@ export function EmrTab({
                             {status.label}
                           </span>
                         </td>
-                        <td className="px-3 py-2.5 text-right">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              flagServiceIssue(o);
-                            }}
-                            className="rounded border px-2 py-1 text-[10px]"
-                            style={{ borderColor: HCHB.powder, color: HCHB.navy }}
-                          >
-                            Flag service issue
-                          </button>
+                        <td className="whitespace-nowrap px-3 py-2.5 text-right">
+                          <div className="flex justify-end gap-1.5">
+                            {o.state === "delivered" && !o.pickup && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  requestPickup(o);
+                                }}
+                                className="rounded px-2 py-1 text-[10px] font-semibold text-white"
+                                style={{ background: HCHB.blue }}
+                              >
+                                Request pickup
+                              </button>
+                            )}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                flagServiceIssue(o);
+                              }}
+                              className="rounded border px-2 py-1 text-[10px]"
+                              style={{ borderColor: HCHB.powder, color: HCHB.navy }}
+                            >
+                              Flag service issue
+                            </button>
+                          </div>
                         </td>
                       </tr>
                       {isOpen && (
@@ -247,16 +308,44 @@ export function EmrTab({
       </div>
 
       <div className="mt-5 rounded-xl border border-line bg-surface p-4">
-        <div className="mb-2 text-[9px] uppercase tracking-wide text-muted">Integration log</div>
-        {log.length === 0 ? (
-          <div className="text-xs text-muted">No ADT events yet.</div>
-        ) : (
-          <ul className="flex flex-col gap-1 font-mono text-[10.5px] text-ink-soft">
-            {log.map((line) => (
-              <li key={line}>{line}</li>
-            ))}
-          </ul>
-        )}
+        <div className="mb-2 text-[9px] uppercase tracking-wide text-muted">
+          Integration log
+        </div>
+        <p className="mb-3 text-[10.5px] leading-relaxed text-muted">
+          Every DME status change gets a timestamped entry — the same principle Qualis
+          documents for its own tracker, where out-of-stock swaps, reschedules, and status
+          updates are all logged with a note.
+        </p>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div>
+            <div className="mb-1.5 text-[9px] uppercase tracking-wide text-muted">
+              ADT events (patient status)
+            </div>
+            {log.length === 0 ? (
+              <div className="text-xs text-muted">No ADT events yet.</div>
+            ) : (
+              <ul className="flex flex-col gap-1 font-mono text-[10.5px] text-ink-soft">
+                {log.map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <div>
+            <div className="mb-1.5 text-[9px] uppercase tracking-wide text-muted">
+              Order events (DME tracker)
+            </div>
+            {orderLog.length === 0 ? (
+              <div className="text-xs text-muted">No order events yet.</div>
+            ) : (
+              <ul className="flex flex-col gap-1 font-mono text-[10.5px] text-ink-soft">
+                {orderLog.map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
