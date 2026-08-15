@@ -56,6 +56,67 @@ const ADT_EVENTS = [
 // has to phone or email — "the quality of your DME tracking is only as
 // good as your vendors' participation." We already model this exact split
 // as Vendor.connected; it just wasn't surfaced in this tracker before.
+// The Qualis panel's own compose modal, styled in HCHB chrome — not
+// note-modal.tsx, which is the Handoff-branded shared one used by the
+// other portal pages. Keeping this local is what keeps the "embedded
+// third-party system" illusion intact through the one write action
+// this panel has.
+function ServiceIssueModal({
+  title,
+  initialNote,
+  onSave,
+  onCancel,
+}: {
+  title: string;
+  initialNote: string;
+  onSave: (note: string) => void;
+  onCancel: () => void;
+}) {
+  const [note, setNote] = useState(initialNote);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: "rgba(13, 31, 60, 0.45)" }}
+      onClick={onCancel}
+    >
+      <div
+        className="w-full max-w-md rounded-xl border bg-white p-4 shadow-2xl"
+        style={{ borderColor: HCHB.powder }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-3 text-[13px] font-semibold" style={{ color: HCHB.navy }}>
+          {title}
+        </div>
+        <textarea
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          rows={4}
+          autoFocus
+          className="w-full rounded-md border px-3 py-2.5 text-[11.5px] leading-relaxed"
+          style={{ borderColor: HCHB.powder, background: HCHB.paper, color: HCHB.navy }}
+        />
+        <div className="mt-3 flex gap-1.5">
+          <button
+            onClick={() => onSave(note.trim())}
+            className="flex-1 rounded px-3 py-2 text-center text-[11px] font-semibold text-white"
+            style={{ background: HCHB.blue }}
+          >
+            Save
+          </button>
+          <button
+            onClick={onCancel}
+            className="rounded border px-3 py-2 text-[11px]"
+            style={{ borderColor: HCHB.powder, color: HCHB.navy }}
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function VendorBadge({ connected }: { connected: boolean }) {
   return connected ? (
     <span
@@ -91,6 +152,7 @@ export function EmrTab({
   const [expanded, setExpanded] = useState<string | null>(null);
   const [serviceFlags, setServiceFlags] = useState<Record<string, string>>({});
   const [orderLog, setOrderLog] = useState<string[]>([]);
+  const [flagFor, setFlagFor] = useState<Order | null>(null);
 
   function logOrderEvent(line: string) {
     const time = new Date().toLocaleTimeString([], {
@@ -102,11 +164,15 @@ export function EmrTab({
   }
 
   function flagServiceIssue(order: Order) {
-    const note = window.prompt(`Service issue — ${order.patientLabel} · ${order.id}`, "");
-    if (note) {
-      setServiceFlags((f) => ({ ...f, [order.id]: note }));
-      logOrderEvent(`Service issue flagged · ${order.id} · ${order.patientLabel} — "${note}"`);
+    setFlagFor(order);
+  }
+
+  function saveServiceFlag(note: string) {
+    if (flagFor && note) {
+      setServiceFlags((f) => ({ ...f, [flagFor.id]: note }));
+      logOrderEvent(`Service issue flagged · ${flagFor.id} · ${flagFor.patientLabel} — "${note}"`);
     }
+    setFlagFor(null);
   }
 
   function requestPickup(order: Order) {
@@ -280,7 +346,7 @@ export function EmrTab({
           tracker above automatically. In a real HL7 feed this is the same discharge event
           (<span className="font-mono">ADT^A03</span>) as any other, carrying a death
           indicator — not a dedicated &quot;deceased&quot; message, which is why the nurse&apos;s
-          &quot;Record passing&quot; tap on the Patients tab is the primary path, and this feed
+          &quot;Record passing&quot; tap on Equipment ▸ By patient is the primary path, and this feed
           is the redundant fallback.
         </p>
         <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
@@ -347,6 +413,15 @@ export function EmrTab({
           </div>
         </div>
       </div>
+
+      {flagFor && (
+        <ServiceIssueModal
+          title={`Service issue — ${flagFor.patientLabel} · ${flagFor.id}`}
+          initialNote={serviceFlags[flagFor.id] ?? ""}
+          onSave={saveServiceFlag}
+          onCancel={() => setFlagFor(null)}
+        />
+      )}
     </div>
   );
 }
