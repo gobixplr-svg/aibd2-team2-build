@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { OnHandAsset, Order, Patient, Vendor } from "@/lib/contracts";
 import { AnalyticsTab } from "./analytics-tab";
-import type { InboxItem } from "./derive";
+import { orderNeedsAttention, type InboxItem } from "./derive";
 import { EquipmentList } from "./equipment-list";
 import { NoteModal } from "./note-modal";
 import { OnHandList } from "./on-hand-list";
@@ -58,9 +58,7 @@ export function EquipmentPage({
   const [subTab, setSubTab] = useState<SubTabKey>("list");
   const [noteFor, setNoteFor] = useState<string | null>(null);
 
-  const needsAttention = orders.filter(
-    (o) => o.state === "at_risk" || o.state === "pickup_delayed",
-  ).length;
+  const needsAttention = orders.filter(orderNeedsAttention).length;
 
   const subtitle =
     subTab === "by-patient"

@@ -6,10 +6,11 @@ import { Pulse } from "@/lib/pulse";
 import { categoryOf } from "@/lib/data/catalog";
 import { DraftCard } from "./draft-card";
 import {
-  RAIL_CLASS,
   deadlineLabel,
   effectiveDeadline,
+  orderNeedsAttention,
   pillFor,
+  railFor,
   type InboxItem,
 } from "./derive";
 
@@ -74,9 +75,7 @@ export function EquipmentList({
       (a, b) => new Date(effectiveDeadline(a)).getTime() - new Date(effectiveDeadline(b)).getTime(),
     );
 
-  const needsAttention = orders.filter(
-    (o) => o.state === "at_risk" || o.state === "pickup_delayed",
-  ).length;
+  const needsAttention = orders.filter(orderNeedsAttention).length;
 
   return (
     <div className="p-5">
@@ -127,7 +126,7 @@ export function EquipmentList({
               onClick={() => setExpanded(isOpen ? null : o.id)}
               className="grid w-full grid-cols-[14px_1.05fr_.7fr_.95fr_.85fr_.85fr_18px] items-center gap-2.5 border-b border-line py-3 text-left text-[11px] text-ink"
             >
-              <span className={`h-8 w-[5px] rounded-sm ${RAIL_CLASS[o.state]}`} />
+              <span className={`h-8 w-[5px] rounded-sm ${railFor(o)}`} />
               <span>
                 <span className="block font-medium">{o.patientLabel}</span>
                 <span className="block font-mono text-[9px] text-muted">
@@ -272,7 +271,7 @@ export function EquipmentList({
                           Couldn&apos;t send — try again
                         </span>
                       )}
-                      {(o.state === "at_risk" || o.state === "pickup_delayed") && (
+                      {orderNeedsAttention(o) && (
                         <button
                           onClick={() => onRequestReroute(o.id)}
                           className="rounded-md bg-brand px-3.5 py-2 text-[11px] font-semibold text-white"
