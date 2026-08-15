@@ -177,7 +177,7 @@ export function StagePage() {
       <div className="flex min-h-0 flex-1 gap-2 p-2">
         <div className="flex min-w-0 flex-[3] flex-col overflow-hidden rounded-lg border-2 border-navy bg-surface">
           <PanelLabel
-            icon="🏥"
+            icon={<CrossIcon />}
             who="HOSPICE"
             detail="case manager's board · laptop"
             accent="bg-navy"
@@ -187,7 +187,7 @@ export function StagePage() {
         <div className="flex w-[340px] shrink-0 flex-col gap-2 md:w-[380px]">
           <div className="flex min-h-0 flex-[3] flex-col overflow-hidden rounded-lg border-2 border-teal bg-surface">
             <PanelLabel
-              icon="🚚"
+              icon={<TruckIcon />}
               who="DME VENDOR"
               detail="dispatcher's phone · magic link, no login"
               accent="bg-teal"
@@ -196,7 +196,7 @@ export function StagePage() {
           </div>
           <div className="flex min-h-0 flex-[2] flex-col overflow-hidden rounded-lg border-2 border-brand bg-surface">
             <PanelLabel
-              icon="👪"
+              icon={<FamilyIcon />}
               who="THE CHECKETTS FAMILY"
               detail="each family gets their own read-only link, texted to them — this one follows M. Checketts"
               accent="bg-brand"
@@ -306,16 +306,63 @@ function PanelLabel({
   detail,
   accent,
 }: {
-  icon: string;
+  icon: React.ReactNode;
   who: string;
   detail: string;
   accent: string;
 }) {
   return (
     <div className={`flex items-center gap-2 px-3 py-1.5 text-white ${accent}`}>
-      <span className="text-sm leading-none">{icon}</span>
+      <span className="leading-none">{icon}</span>
       <span className="text-xs font-bold tracking-wider">{who}</span>
       <span className="text-[11px] text-white/75">{detail}</span>
     </div>
+  );
+}
+
+// Line icons in the label's own color — emoji here read as "generated"
+// (Will's call, and he was right); these match the text weight instead.
+function iconProps() {
+  return {
+    width: 14,
+    height: 14,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 2,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+  };
+}
+
+function CrossIcon() {
+  return (
+    <svg {...iconProps()}>
+      <rect x="3" y="3" width="18" height="18" rx="3" />
+      <path d="M12 8v8M8 12h8" />
+    </svg>
+  );
+}
+
+function TruckIcon() {
+  return (
+    <svg {...iconProps()}>
+      <path d="M14 17V6a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v11" />
+      <path d="M14 8h4l4 4v5h-3" />
+      <circle cx="6.5" cy="17.5" r="2" />
+      <circle cx="16.5" cy="17.5" r="2" />
+      <path d="M8.5 17.5h6" />
+    </svg>
+  );
+}
+
+function FamilyIcon() {
+  return (
+    <svg {...iconProps()}>
+      <circle cx="9" cy="8" r="3.5" />
+      <path d="M2.5 20v-1.5a5 5 0 0 1 5-5h3a5 5 0 0 1 5 5V20" />
+      <circle cx="17.5" cy="9.5" r="2.5" />
+      <path d="M17.5 14.5a4 4 0 0 1 4 4v1" />
+    </svg>
   );
 }
