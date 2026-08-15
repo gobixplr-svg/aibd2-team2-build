@@ -209,27 +209,27 @@ export function StagePage() {
       <div className="border-t border-line-strong bg-navy px-3 py-2.5 text-white">
         {!keyLoaded ? null : !key ? (
           <div className="flex items-center gap-2">
-            <span className="text-xs text-white/80">Control bar is locked — paste the Hermes secret:</span>
+            <span className="text-sm text-white/80">Control bar is locked — paste the Hermes secret:</span>
             <input
               type="password"
               autoComplete="off"
-              className="w-56 rounded-sm border border-white/25 bg-white/10 px-2 py-1 text-xs text-white outline-none placeholder:text-white/40"
+              className="w-56 rounded-sm border border-white/25 bg-white/10 px-2 py-1 text-sm text-white outline-none placeholder:text-white/40"
               placeholder="hermes secret"
               onKeyDown={(e) => {
                 if (e.key === "Enter") saveKey((e.target as HTMLInputElement).value.trim());
               }}
             />
-            <span className="text-[10px] text-white/50">Enter to save (sessionStorage, shared with /control)</span>
+            <span className="text-[12px] text-white/50">Enter to save (sessionStorage, shared with /control)</span>
           </div>
         ) : (
           <div className="flex flex-col gap-1.5">
             <div className="flex flex-wrap items-center gap-1.5">
-              <span className="mr-1.5 shrink-0 rounded-sm bg-brand px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide">
+              <span className="mr-1.5 shrink-0 rounded-sm bg-brand px-1.5 py-0.5 text-[12px] font-bold uppercase tracking-wide">
                 Demo controls
               </span>
               {sim && (
                 <span
-                  className="mr-1.5 shrink-0 rounded-sm border border-white/20 px-2 py-0.5 text-xs font-semibold tabular-nums text-white/90"
+                  className="mr-1.5 shrink-0 rounded-sm border border-white/20 px-2 py-0.5 text-sm font-semibold tabular-nums text-white/90"
                   title="Simulated world clock — all deadlines and SLAs in the panels are measured against this time"
                 >
                   {new Date(sim.now).toLocaleString([], {
@@ -245,14 +245,14 @@ export function StagePage() {
               <button
                 onClick={resetWorld}
                 disabled={busy}
-                className="rounded-md border border-white/25 px-2.5 py-1.5 text-xs font-semibold hover:bg-white/10 disabled:opacity-50"
+                className="rounded-md border border-white/25 px-2.5 py-1.5 text-sm font-semibold hover:bg-white/10 disabled:opacity-50"
               >
                 Reset world
               </button>
               <button
                 onClick={copyReferral}
                 disabled={busy}
-                className="rounded-md border border-white/25 px-2.5 py-1.5 text-xs font-semibold hover:bg-white/10 disabled:opacity-50"
+                className="rounded-md border border-white/25 px-2.5 py-1.5 text-sm font-semibold hover:bg-white/10 disabled:opacity-50"
               >
                 Copy referral
               </button>
@@ -260,21 +260,21 @@ export function StagePage() {
               <button
                 onClick={tickNow}
                 disabled={busy}
-                className="rounded-md bg-teal px-2.5 py-1.5 text-xs font-bold text-navy hover:opacity-90 disabled:opacity-50"
+                className="rounded-md bg-teal px-2.5 py-1.5 text-sm font-bold text-navy hover:opacity-90 disabled:opacity-50"
               >
                 Tick now
               </button>
               <button
                 onClick={speedTick}
                 disabled={busy}
-                className="rounded-md bg-brand px-2.5 py-1.5 text-xs font-bold hover:bg-brand-alt disabled:opacity-50"
+                className="rounded-md bg-brand px-2.5 py-1.5 text-sm font-bold hover:bg-brand-alt disabled:opacity-50"
               >
                 Speed 60× + Tick
               </button>
               <button
                 onClick={jumpTick}
                 disabled={busy}
-                className="rounded-md bg-brand px-2.5 py-1.5 text-xs font-bold hover:bg-brand-alt disabled:opacity-50"
+                className="rounded-md bg-brand px-2.5 py-1.5 text-sm font-bold hover:bg-brand-alt disabled:opacity-50"
               >
                 +25h + Tick
               </button>
@@ -282,14 +282,14 @@ export function StagePage() {
               <button
                 onClick={showLedger}
                 disabled={busy}
-                className="rounded-md border border-white/25 px-2.5 py-1.5 text-xs font-semibold hover:bg-white/10 disabled:opacity-50"
+                className="rounded-md border border-white/25 px-2.5 py-1.5 text-sm font-semibold hover:bg-white/10 disabled:opacity-50"
               >
                 Ledger
               </button>
-              {busy && <span className="text-xs text-white/60">…</span>}
+              {busy && <span className="text-sm text-white/60">…</span>}
             </div>
             {(note ?? error) && (
-              <div className={`text-[11px] ${error ? "text-brand-alt" : "text-white/60"}`}>
+              <div className={`text-[13px] ${error ? "text-brand-alt" : "text-white/60"}`}>
                 {error ?? note}
               </div>
             )}
@@ -314,8 +314,8 @@ function PanelLabel({
   return (
     <div className={`flex items-center gap-2 px-3 py-1.5 text-white ${accent}`}>
       <span className="leading-none">{icon}</span>
-      <span className="text-xs font-bold tracking-wider">{who}</span>
-      <span className="text-[11px] text-white/75">{detail}</span>
+      <span className="text-sm font-bold tracking-wider">{who}</span>
+      <span className="text-[13px] text-white/75">{detail}</span>
     </div>
   );
 }

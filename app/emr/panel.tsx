@@ -39,9 +39,9 @@ export function EmrPanel() {
         {patients.map((p) => (
           <div key={p.id} className="rounded-lg bg-surface border border-line p-3">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-semibold text-ink">{p.label}</span>
+              <span className="text-base font-semibold text-ink">{p.label}</span>
               <span
-                className={`rounded-sm px-1.5 py-0.5 text-[11px] font-semibold ${
+                className={`rounded-sm px-1.5 py-0.5 text-[13px] font-semibold ${
                   p.status === "active"
                     ? "bg-teal/15 text-teal"
                     : p.status === "deceased"
@@ -58,7 +58,7 @@ export function EmrPanel() {
                   key={e.type}
                   disabled={p.status === STATUS_OF[e.type]}
                   onClick={() => fire(p, e.type)}
-                  className={`rounded-md px-2.5 py-1.5 text-xs font-semibold disabled:opacity-30 ${
+                  className={`rounded-md px-2.5 py-1.5 text-sm font-semibold disabled:opacity-30 ${
                     e.type === "deceased"
                       ? "bg-navy text-white"
                       : "border border-line text-ink-soft"
@@ -71,22 +71,22 @@ export function EmrPanel() {
           </div>
         ))}
         {patients.length === 0 && (
-          <div className="text-xs text-muted py-4">Loading patients…</div>
+          <div className="text-sm text-muted py-4">Loading patients…</div>
         )}
       </div>
 
       <div className="rounded-lg border border-line bg-surface p-3">
-        <div className="text-xs font-semibold uppercase tracking-wider text-muted">
+        <div className="text-sm font-semibold uppercase tracking-wider text-muted">
           Event stream (eRx-shaped, ADT pattern) — now server-side: watch any device
         </div>
         {log.length === 0 ? (
-          <div className="mt-2 text-xs text-muted">
+          <div className="mt-2 text-sm text-muted">
             No events fired from this tab yet. Open <span className="font-mono">/board</span>{" "}
             anywhere — another laptop, a phone — then mark a patient deceased and watch the
             pickup trigger itself.
           </div>
         ) : (
-          <ul className="mt-2 flex flex-col gap-1 font-mono text-[11px] text-ink-soft">
+          <ul className="mt-2 flex flex-col gap-1 font-mono text-[13px] text-ink-soft">
             {log.map((line) => (
               <li key={line}>{line}</li>
             ))}

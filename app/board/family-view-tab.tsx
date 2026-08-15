@@ -17,8 +17,8 @@ const STATUS_LABEL: Record<Patient["status"], string> = {
 export function FamilyViewTab({ patients }: { patients: Patient[] }) {
   return (
     <div className="p-5">
-      <div className="mb-3.5 text-lg font-semibold text-ink">Family view</div>
-      <p className="mb-4 max-w-xl text-xs leading-relaxed text-muted">
+      <div className="mb-3.5 text-[21px] font-semibold text-ink">Family view</div>
+      <p className="mb-4 max-w-xl text-sm leading-relaxed text-muted">
         Each patient with an active family-tracker link, below. The tracker itself is
         read-only and calm by design — this index is for the care team, not the family.
       </p>
@@ -29,8 +29,8 @@ export function FamilyViewTab({ patients }: { patients: Patient[] }) {
             className="flex items-center gap-3 rounded-lg border border-line bg-surface px-4 py-3"
           >
             <div className="flex-1">
-              <div className="text-sm font-medium text-ink">{p.label}</div>
-              <div className="text-[10px] text-muted">
+              <div className="text-base font-medium text-ink">{p.label}</div>
+              <div className="text-[12px] text-muted">
                 {p.id} · {STATUS_LABEL[p.status]}
               </div>
             </div>
@@ -38,12 +38,12 @@ export function FamilyViewTab({ patients }: { patients: Patient[] }) {
               <Link
                 href={`/f/${p.familyToken}`}
                 target="_blank"
-                className="rounded-md border border-line-strong bg-page px-3 py-2 text-[11px] text-ink-soft"
+                className="rounded-md border border-line-strong bg-page px-3 py-2 text-[13px] text-ink-soft"
               >
                 Open tracker
               </Link>
             ) : (
-              <span className="text-[10px] text-muted">no tracker link yet</span>
+              <span className="text-[12px] text-muted">no tracker link yet</span>
             )}
           </div>
         ))}

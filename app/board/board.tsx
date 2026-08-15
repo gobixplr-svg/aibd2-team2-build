@@ -35,6 +35,16 @@ const TABS = [
 
 type TabKey = (typeof TABS)[number]["key"];
 
+// Bottom bar (mobile only): three destinations a nurse actually opens in
+// the field. EMR simulator is a demo harness for the integration story,
+// not something she'd reach for on her phone — it stays desktop-only,
+// reachable only via the (hidden-below-sm) top nav.
+const BOTTOM_TABS = [
+  { key: "today", label: "Today" },
+  { key: "equipment", label: "Equipment" },
+  { key: "family", label: "Family" },
+] as const satisfies readonly { key: TabKey; label: string }[];
+
 interface WorldState {
   orders: Order[];
   patients: Patient[];
@@ -101,7 +111,7 @@ export function HospicePortal() {
   useSpotlight();
 
   if (error)
-    return <div className="p-6 text-sm text-critical">State unavailable: {error}</div>;
+    return <div className="p-6 text-base text-critical">State unavailable: {error}</div>;
   if (!state)
     return <div className="min-h-dvh bg-page" />;
 
@@ -216,11 +226,11 @@ export function HospicePortal() {
             title="Today — your action items"
           >
             <span className="inline-block h-5 w-5 rounded-md bg-brand" />
-            <span className="text-[15px] font-bold tracking-tight">
+            <span className="text-[17px] font-bold tracking-tight">
               Better<span className="text-brand">RX</span>
             </span>
           </button>
-          <nav className="hidden gap-0.5 self-stretch text-xs sm:flex">
+          <nav className="hidden gap-0.5 self-stretch text-sm sm:flex">
             {TABS.map((t) => (
               <button
                 key={t.key}
@@ -236,27 +246,13 @@ export function HospicePortal() {
               </button>
             ))}
           </nav>
-          {/* Below sm, the button row would overflow — a native select is a
-              better phone control anyway, and costs one element. Same
-              handler, same tab state. */}
-          <select
-            value={tab}
-            onChange={(e) => setTab(e.target.value as TabKey)}
-            className="order-last w-full rounded-md border border-white/30 bg-transparent py-2 px-3 text-xs text-white sm:hidden"
-          >
-            {TABS.map((t) => (
-              <option key={t.key} value={t.key} className="text-ink">
-                {t.label}
-              </option>
-            ))}
-          </select>
-          <div className="ml-auto flex flex-wrap items-center gap-2.5 py-3.5 text-[11px] text-white/70">
+          <div className="ml-auto flex flex-wrap items-center gap-2.5 py-3.5 text-[13px] text-white/70">
             {/* The world's clock — every deadline on the board is relative
                 to THIS time, not the wall clock. The demo turns it faster;
                 showing it is what makes "due by 4:30" legible at 2:15 on
                 a Saturday. */}
             <span
-              className="text-[13px] font-medium tabular-nums text-white/90"
+              className="text-[15px] font-medium tabular-nums text-white/90"
               title="World clock — all deadlines and SLAs are measured against this time. The demo can run it faster than real time."
             >
               {new Date(state.now).toLocaleString([], {
@@ -273,7 +269,7 @@ export function HospicePortal() {
               // It climbs as the clock runs, so it pulses on every change
               // and wears the warning color: legible from the back row.
               <Pulse watch={state.money.pickupOverdueUsd}>
-                <span className="text-[13px] font-bold tabular-nums text-warning">
+                <span className="text-[15px] font-bold tabular-nums text-warning">
                   ${state.money.pickupOverdueUsd.toFixed(2)} accruing
                 </span>
               </Pulse>
@@ -285,7 +281,7 @@ export function HospicePortal() {
         </div>
       </header>
 
-      <div className="mx-auto w-full max-w-7xl flex-1 bg-surface">
+      <div className="mx-auto w-full max-w-7xl flex-1 bg-surface pb-14 sm:pb-0">
         {tab === "today" && (
           <TodayTab
             orders={orders}
@@ -332,6 +328,32 @@ export function HospicePortal() {
         )}
         {tab === "family" && <FamilyViewTab patients={patients} />}
       </div>
+
+      {/* Bottom bar (mobile only): the button row moves here instead of a
+          top-of-page select — three equal 56px targets in thumb reach,
+          fixed under the scrolling content (which carries matching bottom
+          padding above so the last row still clears it). */}
+      <nav className="fixed inset-x-0 bottom-0 z-30 flex bg-navy sm:hidden">
+        {BOTTOM_TABS.map((t) => (
+          <button
+            key={t.key}
+            data-spotlight={`tab-${t.key}`}
+            onClick={() => setTab(t.key)}
+            className={`flex min-h-14 flex-1 flex-col items-center justify-center gap-1 border-t-[3px] text-[12px] ${
+              tab === t.key
+                ? "border-brand bg-brand/10 font-semibold text-white"
+                : "border-transparent text-white/60"
+            }`}
+          >
+            <span
+              className={`h-4 w-4 rounded ${
+                tab === t.key ? "bg-brand" : "border-[1.5px] border-white/45"
+              }`}
+            />
+            {t.label}
+          </button>
+        ))}
+      </nav>
 
       {newOrderOpen && (
         <OrderFormModal

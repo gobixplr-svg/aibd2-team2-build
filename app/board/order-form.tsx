@@ -146,13 +146,13 @@ export function OrderFormModal({
       >
         <div className="flex items-center gap-2.5 border-b border-line px-5 py-4">
           <div className="flex-1">
-            <div className="text-sm font-semibold text-ink">New order</div>
-            <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted">
+            <div className="text-base font-semibold text-ink">New order</div>
+            <div className="mt-0.5 flex items-center gap-1.5 text-sm text-muted">
               {activePatients.length > 1 ? (
                 <select
                   value={patientId}
                   onChange={(e) => setPatientId(e.target.value)}
-                  className="rounded-sm border border-line bg-surface px-1.5 py-0.5 text-xs text-ink"
+                  className="rounded-sm border border-line bg-surface px-1.5 py-0.5 text-sm text-ink"
                 >
                   {activePatients.map((p) => (
                     <option key={p.id} value={p.id}>
@@ -171,7 +171,7 @@ export function OrderFormModal({
                     <Conf value={draft.patientId.confidence} />
                   )
                 ) : (
-                  <span className="rounded-full bg-critical/10 px-1.5 py-0.5 text-[9px] font-semibold text-critical">
+                  <span className="rounded-full bg-critical/10 px-1.5 py-0.5 text-[11px] font-semibold text-critical">
                     no patient match — pick one
                   </span>
                 ))}
@@ -180,7 +180,7 @@ export function OrderFormModal({
           <button
             onClick={onCancel}
             aria-label="Close"
-            className="text-sm text-muted hover:text-ink-soft"
+            className="text-base text-muted hover:text-ink-soft"
           >
             ✕
           </button>
@@ -188,12 +188,12 @@ export function OrderFormModal({
 
         <div className="border-b border-line bg-page px-5 py-3.5">
           <div className="mb-1.5 flex items-center gap-2">
-            <span className="text-[9px] uppercase tracking-wide text-muted">
+            <span className="text-[11px] uppercase tracking-wide text-muted">
               0 · Paste referral — AI intake
             </span>
             {draft && (
               <span
-                className={`rounded-full px-2 py-0.5 text-[9px] font-semibold ${
+                className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
                   draft.aiUsed ? "bg-teal/15 text-teal" : "bg-cream text-ink"
                 }`}
               >
@@ -209,21 +209,21 @@ export function OrderFormModal({
               onChange={(e) => setReferral(e.target.value)}
               rows={draft ? 2 : 3}
               placeholder="Paste the referral / discharge summary here — e.g. “Discharging Ruth C. home this afternoon, needs hospital bed with rails and O2 at 2L, family says by 5pm.”"
-              className="flex-1 resize-none rounded-md border border-dashed border-line-strong bg-surface px-3 py-2 text-[11px] leading-relaxed text-ink placeholder:text-muted"
+              className="flex-1 resize-none rounded-md border border-dashed border-line-strong bg-surface px-3 py-2 text-[13px] leading-relaxed text-ink placeholder:text-muted"
             />
             <button
               onClick={extract}
               disabled={!referral.trim() || extracting}
-              className="self-start rounded-md bg-brand px-3.5 py-2 text-[11px] font-semibold text-white disabled:opacity-40"
+              className="self-start rounded-md bg-brand px-3.5 py-2 text-[13px] font-semibold text-white disabled:opacity-40"
             >
               {extracting ? "Extracting…" : draft ? "Re-extract" : "Extract"}
             </button>
           </div>
           {extractError && (
-            <div className="mt-1.5 text-[10px] text-critical">{extractError}</div>
+            <div className="mt-1.5 text-[12px] text-critical">{extractError}</div>
           )}
           {draft && draft.unmapped.length > 0 && (
-            <div className="mt-2 rounded-md bg-cream px-3 py-2 text-[10.5px] leading-relaxed text-ink">
+            <div className="mt-2 rounded-md bg-cream px-3 py-2 text-[12.5px] leading-relaxed text-ink">
               <span className="font-semibold">Didn&apos;t map:</span>{" "}
               {draft.unmapped.map((u) => `“${u}”`).join(" · ")} — handle these
               yourself before placing.
@@ -248,7 +248,7 @@ export function OrderFormModal({
                           return n;
                         })
                       }
-                      className={`flex items-center gap-2.5 rounded-md border px-3 py-2 text-left text-[11.5px] ${
+                      className={`flex items-center gap-2.5 rounded-md border px-3 py-2 text-left text-[13.5px] ${
                         on ? "border-brand bg-cream" : "border-line bg-surface"
                       }`}
                     >
@@ -257,14 +257,14 @@ export function OrderFormModal({
                           on ? "border-brand bg-brand" : "border-line-strong"
                         }`}
                       />
-                      <span className="min-w-[52px] font-mono text-[10px] text-muted">
+                      <span className="min-w-[52px] font-mono text-[12px] text-muted">
                         {c.hcpcs}
                       </span>
                       <span className="flex-1 text-ink">{c.name}</span>
                       {itemConfidence.has(c.hcpcs) && (
                         <Conf value={itemConfidence.get(c.hcpcs)!} />
                       )}
-                      <span className="text-[9.5px] text-muted">
+                      <span className="text-[11px] text-muted">
                         ${c.monthly}/mo
                         {(c.highCost || c.monthly > DON_THRESHOLD_MONTHLY) && " · DON"}
                       </span>
@@ -285,7 +285,7 @@ export function OrderFormModal({
                       <button
                         key={u}
                         onClick={() => setUrgency(u)}
-                        className={`rounded-full border px-3 py-1.5 text-[11px] font-semibold ${
+                        className={`rounded-full border px-3 py-1.5 text-[13px] font-semibold ${
                           urgency === u
                             ? u === "stat"
                               ? "border-brand text-brand"
@@ -312,23 +312,23 @@ export function OrderFormModal({
                     type="datetime-local"
                     value={targetAt}
                     onChange={(e) => setTargetAt(e.target.value)}
-                    className="w-full rounded-md border border-dashed border-line-strong bg-page px-2.5 py-2 text-[11px] text-ink"
+                    className="w-full rounded-md border border-dashed border-line-strong bg-page px-2.5 py-2 text-[13px] text-ink"
                   />
                 </Field>
               </div>
             </div>
 
             <div className="rounded-lg border border-dashed border-line-strong bg-page p-3">
-              <span className="mb-2 inline-block rounded-full border border-line-strong px-2 py-0.5 text-[9px] uppercase tracking-wide text-ink-soft">
+              <span className="mb-2 inline-block rounded-full border border-line-strong px-2 py-0.5 text-[11px] uppercase tracking-wide text-ink-soft">
                 Pending
               </span>
-              <div className="mb-2 text-[9px] uppercase tracking-wide text-muted">
+              <div className="mb-2 text-[11px] uppercase tracking-wide text-muted">
                 Dispatch source
               </div>
               <div className="flex gap-2">
                 <button
                   onClick={() => setDispatchSource("on_hand")}
-                  className={`flex-1 rounded-md border px-2.5 py-2 text-left text-[11px] ${
+                  className={`flex-1 rounded-md border px-2.5 py-2 text-left text-[13px] ${
                     dispatchSource === "on_hand" ? "border-brand bg-surface" : "border-line bg-surface"
                   }`}
                 >
@@ -336,23 +336,23 @@ export function OrderFormModal({
                 </button>
                 <button
                   onClick={() => setDispatchSource("vendor")}
-                  className={`flex-1 rounded-md border px-2.5 py-2 text-left text-[11px] ${
+                  className={`flex-1 rounded-md border px-2.5 py-2 text-left text-[13px] ${
                     dispatchSource === "vendor" ? "border-brand bg-surface" : "border-line bg-surface"
                   }`}
                 >
                   Vendor dispatch
                 </button>
               </div>
-              <div className="mt-2 text-[10px] text-muted">
+              <div className="mt-2 text-[12px] text-muted">
                 Not signed off yet — on-hand inventory tracking lands later this build.
               </div>
             </div>
           </div>
 
           <div className="bg-page p-5 flex flex-col">
-            <div className="mb-0.5 text-[9px] uppercase tracking-wide text-muted">4 · Vendor</div>
-            <div className="mb-2 text-[10px] text-muted">Ranked: on-time, then cost, then fit</div>
-            <div className="grid grid-cols-[1.3fr_.8fr_.6fr_.6fr] gap-1 border-b border-line pb-1.5 text-[9px] uppercase tracking-wide text-muted">
+            <div className="mb-0.5 text-[11px] uppercase tracking-wide text-muted">4 · Vendor</div>
+            <div className="mb-2 text-[12px] text-muted">Ranked: on-time, then cost, then fit</div>
+            <div className="grid grid-cols-[1.3fr_.8fr_.6fr_.6fr] gap-1 border-b border-line pb-1.5 text-[11px] uppercase tracking-wide text-muted">
               <div>Vendor</div>
               <div>On-time</div>
               <div>Cost</div>
@@ -364,14 +364,14 @@ export function OrderFormModal({
                   key={row.vendor.id}
                   onClick={() => setVendorId(row.vendor.id)}
                   disabled={items.length === 0}
-                  className={`grid grid-cols-[1.3fr_.8fr_.6fr_.6fr] items-center gap-1 border-b border-line bg-surface px-2 py-2.5 text-left text-[11px] disabled:opacity-40 ${
+                  className={`grid grid-cols-[1.3fr_.8fr_.6fr_.6fr] items-center gap-1 border-b border-line bg-surface px-2 py-2.5 text-left text-[13px] disabled:opacity-40 ${
                     vendorId === row.vendor.id ? "ring-1 ring-inset ring-brand" : ""
                   }`}
                 >
                   <div>
                     <div className="font-medium text-ink">{row.vendor.name}</div>
                     {!row.vendor.connected && (
-                      <div className="text-[9px] leading-tight text-muted">
+                      <div className="text-[11px] leading-tight text-muted">
                         not yet connected — BetterRX still tracks it
                       </div>
                     )}
@@ -390,7 +390,7 @@ export function OrderFormModal({
             </div>
 
             {needsDon && (
-              <div className="mt-3.5 rounded-lg bg-cream p-2.5 text-[11px] leading-relaxed text-ink">
+              <div className="mt-3.5 rounded-lg bg-cream p-2.5 text-[13px] leading-relaxed text-ink">
                 High-cost item — routes to the DON approval inbox. It still sends;
                 approval is not a block.
               </div>
@@ -400,13 +400,13 @@ export function OrderFormModal({
               <button
                 onClick={place}
                 disabled={!vendorId || items.length === 0}
-                className="flex-1 rounded-md bg-brand px-3 py-2.5 text-center text-xs font-semibold text-white disabled:opacity-40"
+                className="flex-1 rounded-md bg-brand px-3 py-2.5 text-center text-sm font-semibold text-white disabled:opacity-40"
               >
                 Place order
               </button>
               <button
                 onClick={onCancel}
-                className="rounded-md border border-line-strong bg-surface px-4 py-2.5 text-xs text-ink-soft"
+                className="rounded-md border border-line-strong bg-surface px-4 py-2.5 text-sm text-ink-soft"
               >
                 Cancel
               </button>
@@ -429,7 +429,7 @@ function Field({
 }) {
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex items-center gap-1.5 text-[9px] uppercase tracking-wide text-muted">
+      <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-muted">
         {label}
         {chip}
       </div>
@@ -446,7 +446,7 @@ function Conf({ value }: { value: number }) {
   return (
     <span
       title={low ? "Low confidence — check this field" : "Extraction confidence"}
-      className={`rounded-full px-1.5 py-0.5 font-mono text-[9px] font-semibold normal-case tracking-normal ${
+      className={`rounded-full px-1.5 py-0.5 font-mono text-[11px] font-semibold normal-case tracking-normal ${
         low ? "bg-critical/10 text-critical" : "bg-teal/15 text-teal"
       }`}
     >

@@ -80,7 +80,7 @@ export function EquipmentList({
 
   return (
     <div className="p-5">
-      <div className="mb-3.5 flex flex-wrap items-center gap-1.5 text-[10px]">
+      <div className="mb-3.5 flex flex-wrap items-center gap-1.5 text-[12px]">
         <Chip active={category === "All"} onClick={() => setCategory("All")}>
           All {orders.length}
         </Chip>
@@ -93,23 +93,23 @@ export function EquipmentList({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search patient / asset ID"
-          className="ml-auto rounded-full border border-dashed border-line-strong bg-page px-3 py-1.5 text-[11px] text-ink placeholder:text-muted"
+          className="ml-auto rounded-full border border-dashed border-line-strong bg-page px-3 py-1.5 text-[13px] text-ink placeholder:text-muted"
         />
         <button
           data-spotlight="new-order"
           onClick={onNewOrder}
-          className="rounded-md bg-brand px-3.5 py-1.5 text-[11px] font-semibold text-white"
+          className="rounded-md bg-brand px-3.5 py-1.5 text-[13px] font-semibold text-white"
         >
           New order
         </button>
         {needsAttention > 0 && (
-          <span className="rounded-full border border-critical/40 bg-critical/10 px-2.5 py-1 text-[11px] font-semibold text-critical">
+          <span className="rounded-full border border-critical/40 bg-critical/10 px-2.5 py-1 text-[13px] font-semibold text-critical">
             {needsAttention} need attention
           </span>
         )}
       </div>
 
-      <div className="grid grid-cols-[14px_1fr_18px] gap-2.5 border-b border-line pb-2 text-[9px] uppercase tracking-wide text-muted sm:grid-cols-[14px_1.05fr_.7fr_.95fr_.85fr_.85fr_18px]">
+      <div className="grid grid-cols-[14px_1fr_18px] gap-2.5 border-b border-line pb-2 text-[11px] uppercase tracking-wide text-muted sm:grid-cols-[14px_1.05fr_.7fr_.95fr_.85fr_.85fr_18px]">
         <div />
         <div>
           <span className="sm:hidden">Patient · status</span>
@@ -128,42 +128,42 @@ export function EquipmentList({
           <Pulse key={o.id} watch={`${o.state}:${o.risk?.score ?? ""}:${o.etaAt ?? ""}`}>
             <button
               onClick={() => setExpanded(isOpen ? null : o.id)}
-              className="grid w-full grid-cols-[14px_1fr_18px] items-center gap-2.5 border-b border-line py-3 text-left text-[11px] text-ink sm:grid-cols-[14px_1.05fr_.7fr_.95fr_.85fr_.85fr_18px]"
+              className="grid w-full grid-cols-[14px_1fr_18px] items-center gap-2.5 border-b border-line py-3 text-left text-[13px] text-ink sm:grid-cols-[14px_1.05fr_.7fr_.95fr_.85fr_.85fr_18px]"
             >
               <span className={`h-8 w-[5px] rounded-sm ${railFor(o)}`} />
               <span>
                 <span className="block font-medium">{o.patientLabel}</span>
-                <span className="hidden font-mono text-[9px] text-muted sm:block">
+                <span className="hidden font-mono text-[11px] text-muted sm:block">
                   {o.items[0]?.assetId ?? o.id}
                 </span>
                 {/* Code + status + deadline collapse into this line below sm — the
                     dedicated columns disappear, but urgency still reads without a tap. */}
                 <span className="mt-1 flex items-center gap-1.5 sm:hidden">
                   <span
-                    className={`whitespace-nowrap rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${pillFor(o).className}`}
+                    className={`whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${pillFor(o).className}`}
                   >
                     {pillFor(o).label}
                   </span>
-                  <span className="whitespace-nowrap font-mono text-[9.5px] text-ink-soft">
+                  <span className="whitespace-nowrap font-mono text-[11px] text-ink-soft">
                     {o.items[0]?.hcpcs}
                     {o.items.length > 1 ? ` +${o.items.length - 1}` : ""} · due{" "}
                     {deadlineLabel(effectiveDeadline(o))}
                   </span>
                 </span>
               </span>
-              <span className="hidden font-mono text-[10px] sm:block">
+              <span className="hidden font-mono text-[12px] sm:block">
                 {o.items[0]?.hcpcs}
                 {o.items.length > 1 ? ` +${o.items.length - 1}` : ""}
               </span>
               <span className="hidden sm:block">
                 <span
-                  className={`rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${pillFor(o).className}`}
+                  className={`rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${pillFor(o).className}`}
                 >
                   {pillFor(o).label}
                 </span>
               </span>
-              <span className="hidden text-[10px] text-ink-soft sm:block">{vendorName(o.vendorId)}</span>
-              <span className="hidden text-[10px] sm:block">{deadlineLabel(effectiveDeadline(o))}</span>
+              <span className="hidden text-[12px] text-ink-soft sm:block">{vendorName(o.vendorId)}</span>
+              <span className="hidden text-[12px] sm:block">{deadlineLabel(effectiveDeadline(o))}</span>
               <span className="text-right text-muted">{isOpen ? "⌄" : "›"}</span>
             </button>
 
@@ -173,32 +173,32 @@ export function EquipmentList({
                   <div>
                     {o.risk ? (
                       <>
-                        <div className="mb-2 text-[9px] uppercase tracking-wide text-muted">
+                        <div className="mb-2 text-[11px] uppercase tracking-wide text-muted">
                           Why it&apos;s flagged · score {o.risk.score} · verbatim
                         </div>
                         <div className="flex flex-col gap-1.5">
                           {o.risk.reasons.map((r) => (
                             <div
                               key={r}
-                              className="flex gap-2 rounded-md border border-line bg-surface px-2.5 py-2 text-[10.5px] leading-relaxed text-ink"
+                              className="flex gap-2 rounded-md border border-line bg-surface px-2.5 py-2 text-[12.5px] leading-relaxed text-ink"
                             >
                               <span className="font-bold text-warning">·</span>
                               <span>{r}</span>
                             </div>
                           ))}
                         </div>
-                        <div className="mt-3 mb-1.5 text-[9px] uppercase tracking-wide text-muted">
+                        <div className="mt-3 mb-1.5 text-[11px] uppercase tracking-wide text-muted">
                           Features · the audit trail
                         </div>
                         <div className="flex flex-col gap-1">
                           {auditRows(o.risk.features).map((row) => (
                             <div
                               key={row.key}
-                              className="flex items-baseline justify-between gap-2 rounded-md bg-surface px-2.5 py-1.5 text-[10px]"
+                              className="flex items-baseline justify-between gap-2 rounded-md bg-surface px-2.5 py-1.5 text-[12px]"
                             >
                               <span>
                                 <span className="text-ink-soft">{row.label}</span>{" "}
-                                <span className="font-mono text-[8.5px] text-muted">{row.key}</span>
+                                <span className="font-mono text-[11px] text-muted">{row.key}</span>
                               </span>
                               <span className="shrink-0 font-medium tabular-nums text-ink">
                                 {row.value}
@@ -206,17 +206,17 @@ export function EquipmentList({
                             </div>
                           ))}
                         </div>
-                        <div className="mt-2 text-[10px] text-muted">
+                        <div className="mt-2 text-[12px] text-muted">
                           Stored fields only. No free text, no generated reasoning.
                         </div>
                       </>
                     ) : (
-                      <div className="text-[11px] text-muted">Not flagged.</div>
+                      <div className="text-[13px] text-muted">Not flagged.</div>
                     )}
                   </div>
                   <div>
-                    <div className="mb-2 text-[9px] uppercase tracking-wide text-muted">Order</div>
-                    <div className="rounded-md border border-line bg-surface p-3 text-[11px] leading-loose text-ink">
+                    <div className="mb-2 text-[11px] uppercase tracking-wide text-muted">Order</div>
+                    <div className="rounded-md border border-line bg-surface p-3 text-[13px] leading-loose text-ink">
                       <Row label="Item" value={o.items.map((i) => i.name).join(", ")} />
                       <Row label="Vendor" value={vendorName(o.vendorId)} />
                       <Row label="ETA" value={o.etaAt ? deadlineLabel(o.etaAt) : "—"} />
@@ -224,14 +224,14 @@ export function EquipmentList({
                       <Row label="Urgency" value={o.urgency === "stat" ? "STAT" : "Routine"} />
                     </div>
                     <div className="mt-2.5 rounded-md border border-dashed border-line-strong bg-surface p-3">
-                      <div className="mb-1 text-[9px] uppercase tracking-wide text-muted">Note</div>
-                      <div className="text-[11px] leading-relaxed text-ink-soft">
+                      <div className="mb-1 text-[11px] uppercase tracking-wide text-muted">Note</div>
+                      <div className="text-[13px] leading-relaxed text-ink-soft">
                         {o.note || "No notes yet."}
                       </div>
                     </div>
                     {o.pod && (
                       <div className="mt-3">
-                        <div className="mb-1.5 text-[9px] uppercase tracking-wide text-muted">
+                        <div className="mb-1.5 text-[11px] uppercase tracking-wide text-muted">
                           Proof of delivery
                         </div>
                         <div className="flex gap-3 rounded-md border border-line bg-surface p-3">
@@ -243,16 +243,16 @@ export function EquipmentList({
                               className="h-20 w-20 rounded-md border border-line object-cover"
                             />
                           )}
-                          <div className="text-[11px] leading-relaxed text-ink">
+                          <div className="text-[13px] leading-relaxed text-ink">
                             <div>
                               Received by <span className="font-medium">{o.pod.signedBy ?? "—"}</span>
                             </div>
-                            <div className="text-[10px] text-ink-soft">
+                            <div className="text-[12px] text-ink-soft">
                               {o.pod.condition.clean && o.pod.condition.functional && o.pod.condition.complete
                                 ? "Condition: all checks passed"
                                 : `Condition issue: ${o.pod.condition.note ?? "see vendor note"}`}
                             </div>
-                            <div className="text-[10px] text-muted">{deadlineLabel(o.pod.at)}</div>
+                            <div className="text-[12px] text-muted">{deadlineLabel(o.pod.at)}</div>
                           </div>
                         </div>
                       </div>
@@ -275,34 +275,34 @@ export function EquipmentList({
                       {orderNeedsAttention(o) && (
                         <button
                           onClick={() => onRequestReroute(o.id)}
-                          className="order-first min-h-[44px] w-full rounded-md bg-brand px-3.5 py-2 text-[11px] font-semibold text-white sm:order-none sm:w-auto sm:min-h-0"
+                          className="order-first min-h-[44px] w-full rounded-md bg-brand px-3.5 py-2 text-[13px] font-semibold text-white sm:order-none sm:w-auto sm:min-h-0"
                         >
                           Request reroute
                         </button>
                       )}
                       <button
                         onClick={() => onAddNote(o.id)}
-                        className="min-h-[44px] flex-1 rounded-md border border-line-strong bg-surface px-3 py-2 text-[11px] text-ink-soft sm:min-h-0 sm:flex-none"
+                        className="min-h-[44px] flex-1 rounded-md border border-line-strong bg-surface px-3 py-2 text-[13px] text-ink-soft sm:min-h-0 sm:flex-none"
                       >
                         Add note
                       </button>
                       <button
                         onClick={() => handleMessageFamily(o.id, o.patientId)}
                         disabled={familyStatus[o.id] === "sending"}
-                        className="min-h-[44px] flex-1 rounded-md border border-line-strong bg-surface px-3 py-2 text-[11px] text-ink-soft disabled:opacity-60 sm:min-h-0 sm:flex-none"
+                        className="min-h-[44px] flex-1 rounded-md border border-line-strong bg-surface px-3 py-2 text-[13px] text-ink-soft disabled:opacity-60 sm:min-h-0 sm:flex-none"
                       >
                         Message family
                       </button>
                       {familyStatus[o.id] === "sending" && (
-                        <span className="self-center text-[10px] text-muted">Drafting…</span>
+                        <span className="self-center text-[12px] text-muted">Drafting…</span>
                       )}
                       {familyStatus[o.id] === "sent" && (
-                        <span className="self-center text-[10px] text-teal">
+                        <span className="self-center text-[12px] text-teal">
                           Draft sent to Approvals ✓
                         </span>
                       )}
                       {familyStatus[o.id] === "error" && (
-                        <span className="self-center text-[10px] text-critical">
+                        <span className="self-center text-[12px] text-critical">
                           Couldn&apos;t send — try again
                         </span>
                       )}
@@ -316,7 +316,7 @@ export function EquipmentList({
       })}
 
       {sorted.length === 0 && (
-        <div className="mt-4 rounded-md border border-dashed border-line-strong py-8 text-center text-xs text-muted">
+        <div className="mt-4 rounded-md border border-dashed border-line-strong py-8 text-center text-sm text-muted">
           No orders match.
         </div>
       )}

@@ -84,13 +84,13 @@ export default function SnapshotPage() {
     <main className="flex-1 bg-page px-4 py-10 md:py-14">
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-8">
         <header>
-          <div className="text-xs font-semibold uppercase tracking-wider text-brand">
+          <div className="text-sm font-semibold uppercase tracking-wider text-brand">
             Deliverable C · Differentiation snapshot
           </div>
-          <h1 className="mt-1 text-2xl font-bold text-navy md:text-3xl">
+          <h1 className="mt-1 text-[28px] font-bold text-navy md:text-[34px]">
             The neutral rail nobody built
           </h1>
-          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink-soft">
+          <p className="mt-2 max-w-2xl text-base leading-relaxed text-ink-soft">
             Hospice DME today is coordinated by <strong>benefit managers</strong>{" "}
             that insert their own vendor network between the hospice and its
             equipment and take margin on it, or by a{" "}
@@ -104,18 +104,18 @@ export default function SnapshotPage() {
         </header>
 
         <section>
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-navy">
+          <h2 className="text-base font-semibold uppercase tracking-wide text-navy">
             The market today
           </h2>
-          <p className="mt-1 text-xs text-muted">
+          <p className="mt-1 text-sm text-muted">
             ~80% of DME orders are still placed by fax, phone, or a
             vendor-specific portal — even when they start in an EHR. There is no
             DME e-ordering standard.
           </p>
           <div className="mt-3 overflow-x-auto rounded-lg border border-line bg-surface">
-            <table className="w-full min-w-[560px] text-left text-xs">
+            <table className="w-full min-w-[560px] text-left text-sm">
               <thead>
-                <tr className="border-b border-line text-[10px] uppercase tracking-wide text-muted">
+                <tr className="border-b border-line text-[12px] uppercase tracking-wide text-muted">
                   <th className="px-3 py-2 font-semibold">Player</th>
                   <th className="px-3 py-2 font-semibold">What they are</th>
                   <th className="px-3 py-2 font-semibold">The gap</th>
@@ -137,22 +137,22 @@ export default function SnapshotPage() {
         </section>
 
         <section>
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-navy">
+          <h2 className="text-base font-semibold uppercase tracking-wide text-navy">
             Verified white space — and where this app answers it
           </h2>
-          <p className="mt-1 text-xs text-muted">
+          <p className="mt-1 text-sm text-muted">
             Each claim checked against every product surveyed (full sourcing in
             the repo&apos;s market research).
           </p>
           <div className="mt-3 flex flex-col gap-2.5">
             {WHITESPACE.map((w, i) => (
               <div key={i} className="rounded-lg border border-line bg-surface p-4">
-                <div className="text-xs font-medium leading-relaxed text-ink">{w.claim}</div>
+                <div className="text-sm font-medium leading-relaxed text-ink">{w.claim}</div>
                 <div className="mt-2 flex items-baseline gap-2">
-                  <span className="shrink-0 rounded-sm bg-teal/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-teal">
+                  <span className="shrink-0 rounded-sm bg-teal/15 px-1.5 py-0.5 text-[12px] font-semibold uppercase tracking-wide text-teal">
                     In this app
                   </span>
-                  <span className="text-xs leading-relaxed text-ink-soft">
+                  <span className="text-sm leading-relaxed text-ink-soft">
                     {w.inApp}{" "}
                     {w.where && (
                       <Link href={w.where} className="font-medium text-brand underline-offset-2 hover:underline">
@@ -168,10 +168,10 @@ export default function SnapshotPage() {
 
         <section className="grid grid-cols-1 gap-2.5 md:grid-cols-2">
           <div className="rounded-lg border border-line bg-surface p-4">
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-navy">
+            <h3 className="text-sm font-semibold uppercase tracking-wide text-navy">
               Why a hospice cares
             </h3>
-            <p className="mt-1.5 text-xs leading-relaxed text-ink-soft">
+            <p className="mt-1.5 text-sm leading-relaxed text-ink-soft">
               The two moments it gets blamed for but cannot see — equipment late
               before a discharge, equipment lingering after a death — become
               visible, scored before they fail, and closed with a family-facing
@@ -181,10 +181,10 @@ export default function SnapshotPage() {
             </p>
           </div>
           <div className="rounded-lg border border-line bg-surface p-4">
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-navy">
+            <h3 className="text-sm font-semibold uppercase tracking-wide text-navy">
               Why a vendor cares
             </h3>
-            <p className="mt-1.5 text-xs leading-relaxed text-ink-soft">
+            <p className="mt-1.5 text-sm leading-relaxed text-ink-soft">
               Day one: order flow from a phone with zero setup. Over time: the
               SLA scorecard becomes a sales asset, the proof-of-delivery trail
               attacks the 15–25% of DME claims that deny on documentation, and
@@ -194,7 +194,7 @@ export default function SnapshotPage() {
           </div>
         </section>
 
-        <footer className="flex flex-col gap-1 border-t border-line pt-3 text-[11px] text-muted">
+        <footer className="flex flex-col gap-1 border-t border-line pt-3 text-[13px] text-muted">
           <span>
             Researched Aug 14, 2026 — competitive claims verified per product;
             sources inline in the repo&apos;s market-research doc. Synthetic
