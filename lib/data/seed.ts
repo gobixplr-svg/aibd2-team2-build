@@ -146,10 +146,21 @@ export function buildVendors(): Vendor[] {
 // p1 and p4 keep their family tokens — /f/[token] resolves them.
 // p2, p3, p5, p6 keep the labels the stub orders referenced.
 
+// p1–p15 are the original set — buildLiveOrders, on-hand assets and the
+// family-token demo beats all index into these by id, so they keep their
+// exact position. p16+ are appended-only, for analytics volume — never
+// insert or reorder above this line.
 const NAMES = [
   "M. Checketts", "R. Okafor", "L. Sorensen", "D. Whitmer", "J. Maughan",
   "A. Petrov", "E. Tanaka", "B. Halvorsen", "C. Ruiz", "N. Abbasi",
   "G. Lindqvist", "S. Mwangi", "T. Bianchi", "H. Nakamura", "P. Oyelaran",
+  // ── p16–p45: analytics volume ──
+  "K. Sandoval", "F. Kowalski", "V. Ngata", "W. Larsen", "M. Delacroix",
+  "O. Fetzer", "I. Hovland", "Y. Castellanos", "R. Whitfield", "A. Okonkwo",
+  "L. Berglund", "T. Marchetti", "S. Yazzie", "D. Kallenberger", "N. Osei",
+  "C. Wentzel", "P. Aguayo", "E. Skousen", "H. Duvall", "B. Ferreira",
+  "J. Christoffersen", "G. Manwaring", "Q. Alvarado", "Z. Huntsman", "M. Rasmussen",
+  "K. Beaumont", "R. Ah Quin", "L. Vukovic", "D. Espinoza", "T. Hafen",
 ];
 
 const ADDRESSES = [
@@ -161,6 +172,22 @@ const ADDRESSES = [
   "1102 E Vine St, Murray", "580 N 500 W, Provo",
   "2233 S State St, South Salt Lake", "77 W Center St, Orem",
   "4410 S 2700 W, Taylorsville",
+  // ── p16–p45 ──
+  "212 W 400 N, Provo", "6650 S 1300 E, Salt Lake City",
+  "890 E State St, American Fork", "1455 W 12600 S, Riverton",
+  "77 N 200 W, Layton", "3200 W 5400 S, Taylorsville",
+  "540 E Gordon Ave, Layton", "925 S Main St, Bountiful",
+  "2100 N 1200 W, Farmington", "310 W 800 S, Salt Lake City",
+  "8940 S Sandy Pkwy, Sandy", "1560 E 3900 S, Holladay",
+  "745 N 300 E, Lehi", "2233 W 9000 S, West Jordan",
+  "410 S 200 E, Kaysville", "6120 S Wasatch Blvd, Cottonwood Heights",
+  "870 N Freedom Blvd, Provo", "1340 E Center St, Spanish Fork",
+  "455 W 100 S, Ogden", "2870 S Redwood Rd, West Valley",
+  "150 E Main St, Herriman", "3390 W 3500 S, West Valley",
+  "1122 S 500 E, Salt Lake City", "6780 S Highland Dr, Cottonwood Heights",
+  "220 N Main St, Tooele", "980 W 1700 S, Salt Lake City",
+  "1450 E 4500 S, Millcreek", "375 N 900 W, Provo",
+  "2640 S 4000 W, West Valley", "715 E 700 N, Bountiful",
 ];
 
 export interface SeededPatient extends Patient {
@@ -372,9 +399,21 @@ export function buildLiveOrders(now: number): Order[] {
 }
 
 // ── Historical orders ────────────────────────────────────────
-// ~50 completed orders across 90 days. These are never rendered;
-// they exist so vendor stats and the calibration numbers are
-// computed from something real rather than typed in by hand.
+// A full year (365 days), ~1,100 completed rental episodes across 45
+// patients and 3 vendors. These are never rendered on the live board —
+// /api/state keeps them out of `orders` (id prefix ord-h) — but
+// Analytics reads them (see `history` in the hospice payload) for
+// month-over-month spend, category mix, and vendor comparison. Volume
+// bumped from the original ~50/90-day set specifically so those charts
+// have enough density per vendor × category × month to read as real
+// reporting rather than three bars and a shrug.
+//
+// Each episode gets a bounded rental cycle (delivered → pickup
+// completed) so "days on DME" and monthly spend are finite, realistic
+// numbers instead of growing every day the demo stays up — an order
+// with no pickup.completedAt accrues rent against `now` forever, which
+// is correct for equipment still out today but wrong for something
+// delivered 300 days ago that obviously isn't still in the home.
 
 const VENDOR_PROFILE: Record<
   string,
@@ -391,10 +430,12 @@ const VENDOR_PROFILE: Record<
 export function buildHistory(now: number, patients: SeededPatient[]): Order[] {
   const r = rng(SEED + 1);
   const out: Order[] = [];
-  const COUNT = 54;
+  const COUNT = 1100;
+  const WINDOW_DAYS = 365;
+  const vendorsById = new Map(buildVendors().map((v) => [v.id, v]));
 
   for (let i = 0; i < COUNT; i++) {
-    const daysAgo = 3 + Math.floor(r() * 87);
+    const daysAgo = 1 + Math.floor(r() * (WINDOW_DAYS - 1));
     const orderedAt = now - daysAgo * D;
     const patient = pick(r, patients);
     const vendorId = weighted(r, [
@@ -409,17 +450,33 @@ export function buildHistory(now: number, patients: SeededPatient[]): Order[] {
     const targetAt = orderedAt + slaH * H;
 
     const p = VENDOR_PROFILE[vendorId];
-    // Older orders sit further back on the trend line, so v2's STAT
-    // rate is healthy 90 days ago and poor last week.
+    // The STAT-decay trend only applies within the most recent 90
+    // days (the demo's calibration window) — clamp so an order from
+    // eight months ago reads against the vendor's flat baseline
+    // instead of the trend formula running away over a full year.
+    const trendWindow = Math.min(daysAgo, 90);
     const onTimeP =
       urgency === "stat"
-        ? p.statOnTime + p.statTrendPerDay * (90 - daysAgo)
+        ? p.statOnTime + p.statTrendPerDay * (90 - trendWindow)
         : p.routineOnTime;
 
     const onTime = r() < onTimeP;
     const deliveredAt = onTime
       ? targetAt - r() * 3 * H
       : targetAt + (0.4 + r() * 5) * H;
+
+    // Rental length: 8–43 days is the realistic range for a hospice DME
+    // placement that ends in either a pickup or a swap. If that would
+    // push the pickup into the future, leave it off — the equipment is
+    // still out, which is the honest state for anything delivered
+    // recently.
+    const rentalDays = 8 + r() * 35;
+    const triggeredAt = deliveredAt + rentalDays * D;
+    // Retrieval wait: mirrors the vendor's measured avgPickupHours,
+    // with real spread — some pickups run past the 24h SLA, which is
+    // what gives "post-pickup idle days" real historical texture too.
+    const pickupWaitH = (vendorsById.get(vendorId)?.stats?.avgPickupHours ?? 24) * (0.4 + r() * 1.3);
+    const completedAt = triggeredAt + pickupWaitH * H;
 
     out.push({
       id: `ord-h${900 + i}`,
@@ -442,10 +499,21 @@ export function buildHistory(now: number, patients: SeededPatient[]): Order[] {
           complete: r() < (vendorId === "v2" ? 0.74 : 0.96),
         },
       },
+      ...(triggeredAt < now
+        ? {
+            pickup: {
+              triggeredAt: iso(triggeredAt),
+              triggeredBy: "nurse" as const,
+              dueAt: iso(triggeredAt + 24 * H),
+              ...(completedAt < now ? { completedAt: iso(completedAt) } : {}),
+            },
+          }
+        : {}),
       timestamps: {
         ordered: iso(orderedAt),
         dispatched: iso(orderedAt + 0.5 * H),
         delivered: iso(deliveredAt),
+        ...(triggeredAt < now ? { pickup_triggered: iso(triggeredAt) } : {}),
       },
     });
   }

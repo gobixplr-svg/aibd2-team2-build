@@ -109,3 +109,16 @@ export function categoryOf(hcpcs: string): string {
   if (hcpcs === "E0143") return "Walker";
   return "Other";
 }
+
+/** Fixed category order — the Analytics equipment-type filter and any
+ *  chart that needs a stable category axis both read off this, so a
+ *  filter change never reshuffles which category a color/position means. */
+export const ALL_CATEGORIES: string[] = [
+  "Beds",
+  "Oxygen",
+  "CPAP",
+  "BiPAP",
+  "Wheelchair",
+  "Walker",
+  "Other",
+];

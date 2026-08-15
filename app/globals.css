@@ -29,6 +29,13 @@
 
   /* derived (not on their site; darkened coral so "critical" outranks brand) */
   --brx-critical: #c94434;
+
+  /* Analytics categorical series (vendor identity in charts) — teal + brand
+     already exist and pass the palette validator; blue is new, added only
+     because a 3rd vendor needs a 3rd hue with real chroma (slate/navy both
+     fail the chroma floor — they read as gray in a bar/line fill). Reserve
+     this token for chart series only, never status meaning. */
+  --brx-chart-blue: #5b7fde;
 }
 
 @theme inline {
@@ -65,6 +72,9 @@
   /* alerts */
   --color-warning: var(--brx-amber);
   --color-critical: var(--brx-critical);
+
+  /* chart series (categorical — vendor identity, Analytics tab only) */
+  --color-chart-blue: var(--brx-chart-blue);
 
   /* BetterRX radii */
   --radius-sm: 0.25rem;

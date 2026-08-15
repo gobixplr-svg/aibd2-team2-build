@@ -46,8 +46,10 @@ export async function GET(req: Request) {
       getOnHandAssets(),
     ]);
 
-    // Historical orders exist for vendor stats, not for rendering.
+    // Historical orders exist for vendor stats and Analytics, not for the
+    // live board/patient views — those two only ever see `orders` below.
     const live = orders.filter((o) => !o.id.startsWith("ord-h"));
+    const history = orders.filter((o) => o.id.startsWith("ord-h"));
 
     const base = {
       ok: true,
@@ -185,6 +187,11 @@ export async function GET(req: Request) {
     const payload = {
       ...base,
       orders: live,
+      // Analytics-only: a year of completed rental episodes the live
+      // board never renders. Kept as a separate key rather than folded
+      // into `orders` so nothing that reads `orders` (Equipment list,
+      // By patient, needs-attention counts) has to filter it back out.
+      history,
       vendors,
       patients,
       onHand,
