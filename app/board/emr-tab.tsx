@@ -2,6 +2,7 @@
 
 import { Fragment, useState } from "react";
 import type { Order, OrderState, Patient, Vendor } from "@/lib/contracts";
+import { NoteModal } from "./note-modal";
 
 // DME Tracker — patterned after Qualis, the leading third-party DME
 // integration for Homecare Homebase (HCHB has no native DME module of
@@ -91,6 +92,7 @@ export function EmrTab({
   const [expanded, setExpanded] = useState<string | null>(null);
   const [serviceFlags, setServiceFlags] = useState<Record<string, string>>({});
   const [orderLog, setOrderLog] = useState<string[]>([]);
+  const [flagFor, setFlagFor] = useState<Order | null>(null);
 
   function logOrderEvent(line: string) {
     const time = new Date().toLocaleTimeString([], {
@@ -102,11 +104,15 @@ export function EmrTab({
   }
 
   function flagServiceIssue(order: Order) {
-    const note = window.prompt(`Service issue — ${order.patientLabel} · ${order.id}`, "");
-    if (note) {
-      setServiceFlags((f) => ({ ...f, [order.id]: note }));
-      logOrderEvent(`Service issue flagged · ${order.id} · ${order.patientLabel} — "${note}"`);
+    setFlagFor(order);
+  }
+
+  function saveServiceFlag(note: string) {
+    if (flagFor && note) {
+      setServiceFlags((f) => ({ ...f, [flagFor.id]: note }));
+      logOrderEvent(`Service issue flagged · ${flagFor.id} · ${flagFor.patientLabel} — "${note}"`);
     }
+    setFlagFor(null);
   }
 
   function requestPickup(order: Order) {
@@ -347,6 +353,15 @@ export function EmrTab({
           </div>
         </div>
       </div>
+
+      {flagFor && (
+        <NoteModal
+          title={`Service issue — ${flagFor.patientLabel} · ${flagFor.id}`}
+          initialNote={serviceFlags[flagFor.id] ?? ""}
+          onSave={saveServiceFlag}
+          onCancel={() => setFlagFor(null)}
+        />
+      )}
     </div>
   );
 }
