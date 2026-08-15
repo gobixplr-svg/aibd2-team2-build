@@ -42,6 +42,7 @@ export function StagePage() {
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [sim, setSim] = useState<{ now: string; speed: number } | null>(null);
 
   useEffect(() => {
     // Deferred — same never-a-sync-setState convention as use-world.ts.
@@ -50,6 +51,28 @@ export function StagePage() {
       setKeyLoaded(true);
     }, 0);
     return () => clearTimeout(id);
+  }, []);
+
+  // The simulated world clock, front and center: every deadline in the
+  // panels is measured against THIS time, so the presenter (and judges)
+  // can watch a 4:30 deadline actually pass when time jumps.
+  useEffect(() => {
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const res = await fetch("/api/state?scope=hospice");
+        const s = await res.json();
+        if (!cancelled && s?.now) setSim({ now: s.now, speed: s.clock?.speed ?? 1 });
+      } catch {
+        // best-effort — the clock chip just goes quiet
+      }
+    };
+    poll();
+    const id = setInterval(poll, 2000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
   }, []);
 
   const saveKey = (k: string) => {
@@ -204,6 +227,21 @@ export function StagePage() {
               <span className="mr-1.5 shrink-0 rounded-sm bg-brand px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide">
                 Demo controls
               </span>
+              {sim && (
+                <span
+                  className="mr-1.5 shrink-0 rounded-sm border border-white/20 px-2 py-0.5 text-xs font-semibold tabular-nums text-white/90"
+                  title="Simulated world clock — all deadlines and SLAs in the panels are measured against this time"
+                >
+                  {new Date(sim.now).toLocaleString([], {
+                    weekday: "short",
+                    month: "short",
+                    day: "numeric",
+                    hour: "numeric",
+                    minute: "2-digit",
+                  })}
+                  {sim.speed !== 1 && <span className="ml-1.5 text-teal">{sim.speed}×</span>}
+                </span>
+              )}
               <button
                 onClick={resetWorld}
                 disabled={busy}

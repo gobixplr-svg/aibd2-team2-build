@@ -39,6 +39,7 @@ interface WorldState {
   onHand: OnHandAsset[];
   inbox: EngineInboxItem[];
   money: { pickupOverdueUsd: number };
+  clock?: { speed: number };
 }
 
 // Engine inbox → portal display shape (derive.ts calls itself the
@@ -227,6 +228,23 @@ export function HospicePortal() {
             ))}
           </nav>
           <div className="ml-auto flex items-center gap-2.5 py-3.5 text-[11px] text-white/70">
+            {/* The world's clock — every deadline on the board is relative
+                to THIS time, not the wall clock. The demo turns it faster;
+                showing it is what makes "due by 4:30" legible at 2:15 on
+                a Saturday. */}
+            <span
+              className="tabular-nums text-white/80"
+              title="World clock — all deadlines and SLAs are measured against this time. The demo can run it faster than real time."
+            >
+              {new Date(state.now).toLocaleString([], {
+                weekday: "short",
+                hour: "numeric",
+                minute: "2-digit",
+              })}
+              {(state.clock?.speed ?? 1) !== 1 && (
+                <span className="ml-1 font-semibold text-teal">{state.clock?.speed}×</span>
+              )}
+            </span>
             {state.money.pickupOverdueUsd > 0 && (
               <span className="font-semibold text-white tabular-nums">
                 ${state.money.pickupOverdueUsd.toFixed(2)} accruing
