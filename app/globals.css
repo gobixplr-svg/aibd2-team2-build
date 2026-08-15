@@ -78,3 +78,21 @@ body {
   color: var(--brx-ink);
   font-family: var(--font-poppins), Poppins, sans-serif;
 }
+
+/* Activity pulse — draws the eye to whatever just changed. Applied by
+   the Pulse wrapper (lib/pulse.tsx) around order rows, vendor cards,
+   family updates, and approvals-tray items. */
+@keyframes hf-pulse {
+  0% {
+    background-color: color-mix(in srgb, var(--brx-teal) 26%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--brx-teal) 35%, transparent);
+  }
+  100% {
+    background-color: transparent;
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+.pulse-change {
+  animation: hf-pulse 2.2s ease-out;
+  border-radius: 8px;
+}

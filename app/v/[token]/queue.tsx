@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { Order, OrderState, Vendor } from "@/lib/contracts";
 import { postJson, useWorld } from "@/lib/use-world";
+import { Pulse } from "@/lib/pulse";
 import { PodSheet, type PodResult } from "./pod-sheet";
 
 const ETA_CHOICES = [
@@ -307,7 +308,10 @@ function OrderCard({
 }) {
   const pickedUp = !!order.pickup?.completedAt;
   return (
-    <div className={`rounded-lg bg-surface border border-line p-3 shadow-sm ${done ? "opacity-80" : ""}`}>
+    <Pulse
+      watch={`${order.state}:${order.etaAt ?? ""}:${order.pickup?.acknowledgedAt ?? ""}:${order.pickup?.windowStart ?? ""}`}
+      className={`rounded-lg bg-surface border border-line p-3 shadow-sm ${done ? "opacity-80" : ""}`}
+    >
       <div className="flex items-center gap-2 flex-wrap">
         <span
           className={`${STATE_BADGE[order.state]} rounded-sm px-1.5 py-0.5 text-[11px] font-semibold text-white`}
@@ -365,6 +369,6 @@ function OrderCard({
       )}
 
       {children}
-    </div>
+    </Pulse>
   );
 }
