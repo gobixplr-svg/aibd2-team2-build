@@ -330,6 +330,9 @@ export interface InboxItem {
   // "M. Checketts · ord-1001" — who/what this approval is about, so the
   // tray never shows an anonymous card.
   context?: string;
+  // The engine's verbatim why-list, kept as an ARRAY — the tray renders
+  // one row per reason instead of a semicolon-glued paragraph.
+  reasons?: string[];
 }
 
 export const INBOX_KIND_LABEL: Record<InboxKind, string> = {

@@ -58,7 +58,8 @@ function toPortalInbox(items: EngineInboxItem[], patients: Patient[]): InboxItem
             ? "don-approval"
             : "family-message",
       title: i.title,
-      detail: i.reasons.length ? `${i.detail} — ${i.reasons.join("; ")}` : i.detail,
+      detail: i.detail,
+      reasons: i.reasons,
       draft: i.draft,
       patientId: i.patientId,
       context: [label(i.patientId), i.orderId].filter(Boolean).join(" · ") || undefined,

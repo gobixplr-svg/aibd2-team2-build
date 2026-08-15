@@ -7,6 +7,56 @@ import { Pulse } from "@/lib/pulse";
 // Header tray (wireframe turn 3, 3a): approvals apply across all three
 // Equipment sub-tabs, so they moved out of the Equipment rail (turn 2)
 // into global chrome instead of living inside one sub-tab.
+// The engine appends its self-assessment as the last reason, e.g.
+// "Hermes triage (rank 1, confidence 0.91): Oxygen STAT order with …".
+// Pull rank + confidence out so they render as a meter, not prose.
+const TRIAGE_RE = /^Hermes triage \(rank (\d+), confidence ([\d.]+)\):?\s*(.*)$/;
+
+function ReasonList({ reasons }: { reasons?: string[] }) {
+  if (!reasons?.length) return null;
+  const plain: string[] = [];
+  let triage: { rank: number; confidence: number; summary: string } | null = null;
+  for (const r of reasons) {
+    const m = r.match(TRIAGE_RE);
+    if (m) triage = { rank: Number(m[1]), confidence: Number(m[2]), summary: m[3] };
+    else plain.push(r);
+  }
+  return (
+    <div className="mb-2 flex flex-col gap-1">
+      {plain.map((r) => (
+        <div
+          key={r}
+          className="flex gap-1.5 rounded-md border border-line bg-page px-2 py-1.5 text-[10px] leading-snug text-ink-soft"
+        >
+          <span className="font-bold text-warning">·</span>
+          <span>{r}</span>
+        </div>
+      ))}
+      {triage && (
+        <div className="mt-0.5 rounded-md border border-line bg-page px-2 py-1.5">
+          <div className="flex items-baseline justify-between gap-2">
+            <span className="text-[9px] uppercase tracking-wide text-muted">
+              Hermes triage · rank {triage.rank}
+            </span>
+            <span className="text-[10px] font-semibold tabular-nums text-ink">
+              {Math.round(triage.confidence * 100)}% confidence
+            </span>
+          </div>
+          <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-line">
+            <div
+              className="h-full rounded-full bg-teal"
+              style={{ width: `${Math.round(triage.confidence * 100)}%` }}
+            />
+          </div>
+          {triage.summary && (
+            <div className="mt-1 text-[10px] leading-snug text-muted">{triage.summary}</div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function ApprovalsTray({
   inbox,
   onApprove,
@@ -62,7 +112,10 @@ export function ApprovalsTray({
                       <span className="text-[10px] font-semibold text-ink">{a.context}</span>
                     )}
                   </div>
-                  <div className="my-1.5 text-[11px] leading-relaxed text-ink">{a.detail}</div>
+                  <div className="my-1.5 text-[11px] font-medium leading-relaxed text-ink">
+                    {a.detail}
+                  </div>
+                  <ReasonList reasons={a.reasons} />
                   {a.draft !== undefined && (
                     <div className="mb-2">
                       <div className="mb-1 text-[9px] uppercase tracking-wide text-muted">
