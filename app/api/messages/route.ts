@@ -41,10 +41,11 @@ const TITLES: Record<string, string> = {
 
 export async function POST(req: Request) {
   try {
-    const { patientId, body, from } = (await req.json()) as {
+    const { patientId, body, from, orderId } = (await req.json()) as {
       patientId: string;
       body: string;
       from?: string;
+      orderId?: string; // the order the family was looking at when they sent it
     };
 
     if (!patientId || !body?.trim()) {
@@ -69,7 +70,15 @@ export async function POST(req: Request) {
 
     const now = await engineNow();
     const iso = new Date(now).toISOString();
-    const mine = orders.filter((o) => o.patientId === patientId);
+    // Live orders only. The board suppresses pending inbox items whose
+    // order isn't on the live board — attaching to an ord-h historical
+    // seed makes the family's message silently vanish from the tray.
+    const mine = orders.filter(
+      (o) => o.patientId === patientId && !o.id.startsWith("ord-h"),
+    );
+    // Prefer the order the family was actually looking at.
+    const attachedOrderId =
+      orderId && mine.some((o) => o.id === orderId) ? orderId : mine[0]?.id;
 
     // Same toggle as the risk engine, so the rules-only demo covers this
     // path too — and the keyword baseline is visibly worse at exactly the
@@ -105,7 +114,7 @@ export async function POST(req: Request) {
       createdAt: iso,
       tier,
       patientId,
-      orderId: mine[0]?.id,
+      orderId: attachedOrderId,
       title: `${TITLES[triage.recommendedAction] ?? "Family message"} — ${patient.label}`,
       detail: `"${body.trim()}"`,
       reasons: [

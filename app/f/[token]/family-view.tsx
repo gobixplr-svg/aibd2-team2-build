@@ -94,6 +94,7 @@ export function FamilyView({ token }: { token: string }) {
         : `The pickup of the ${items} is scheduled for ${moment.text}, but that window doesn't work for us — ${slot.phrase} would be better. Could it be rescheduled?`;
     const ok = await postJson("/api/messages", {
       patientId: patient.id,
+      orderId: o.id,
       body,
       from: "family",
     });
