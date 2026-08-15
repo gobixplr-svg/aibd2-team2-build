@@ -51,6 +51,22 @@ export function pillFor(order: Order): { label: string; className: string } {
   return { label: STATE_LABEL[order.state], className: PILL_CLASS[order.state] };
 }
 
+/** Rail color, completion-aware — same reason as pillFor: a completed
+ *  pickup keeps state pickup_delayed, and a red rail on a closed order
+ *  reads as an open problem. */
+export function railFor(order: Order): string {
+  if (order.pickup?.completedAt) return RAIL_CLASS.delivered;
+  return RAIL_CLASS[order.state];
+}
+
+/** True while the order still needs a human — at-risk or pickup-delayed
+ *  AND not already resolved by a completed pickup. Every "needs
+ *  attention" count and badge must go through this, never raw state. */
+export function orderNeedsAttention(order: Order): boolean {
+  if (order.pickup?.completedAt) return false;
+  return order.state === "at_risk" || order.state === "pickup_delayed";
+}
+
 /** Order's true deadline: pickup SLA once triggered, else the delivery target. */
 export function effectiveDeadline(order: Order): string {
   return order.pickup?.dueAt ?? order.targetAt;
@@ -87,7 +103,9 @@ const OPEN_LABEL: Record<OrderState, string> = {
 
 /** "1 in transit" / "1 pickup" / "None" — the Patients tab's Open DME column. */
 export function openDmeLabel(orders: Order[]): string {
-  const open = orders.filter((o) => o.state !== "delivered");
+  // A completed pickup is closed regardless of state (which stays
+  // pickup_triggered/delayed forever) — never count it as open.
+  const open = orders.filter((o) => o.state !== "delivered" && !o.pickup?.completedAt);
   if (open.length === 0) return "None";
   const top = OPEN_PRIORITY.find((s) => open.some((o) => o.state === s)) ?? open[0].state;
   const count = open.filter((o) => o.state === top).length;

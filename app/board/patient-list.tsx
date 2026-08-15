@@ -10,6 +10,7 @@ import {
   idlePickupDays,
   openDmeLabel,
   orderDailyRate,
+  orderNeedsAttention,
   PILL_CLASS,
   pillFor,
   postPickupIdleCost,
@@ -20,9 +21,12 @@ import {
 // Highest-severity open risk across a patient's orders, reusing the exact
 // order-pill colors so this reads as the same signal, just rolled up.
 function patientRisk(patientOrders: Order[]): { label: string; className: string } | null {
-  const pickupDelayed = patientOrders.filter((o) => o.state === "pickup_delayed").length;
+  // Completed pickups resolve the risk even though state stays
+  // pickup_delayed — count only orders that still need a human.
+  const open = patientOrders.filter(orderNeedsAttention);
+  const pickupDelayed = open.filter((o) => o.state === "pickup_delayed").length;
   if (pickupDelayed > 0) return { label: `${pickupDelayed} pickup delayed`, className: PILL_CLASS.pickup_delayed };
-  const atRisk = patientOrders.filter((o) => o.state === "at_risk").length;
+  const atRisk = open.filter((o) => o.state === "at_risk").length;
   if (atRisk > 0) return { label: `${atRisk} at risk`, className: PILL_CLASS.at_risk };
   return null;
 }
