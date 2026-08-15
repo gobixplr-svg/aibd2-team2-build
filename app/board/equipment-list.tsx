@@ -102,7 +102,7 @@ export function EquipmentList({
           New order
         </button>
         {needsAttention > 0 && (
-          <span className="w-full text-right text-[10px] text-critical">
+          <span className="rounded-full border border-critical/40 bg-critical/10 px-2.5 py-1 text-[11px] font-semibold text-critical">
             {needsAttention} need attention
           </span>
         )}

@@ -9,6 +9,7 @@ import type {
   Vendor,
 } from "@/lib/contracts";
 import { postJson, useWorld } from "@/lib/use-world";
+import { Pulse } from "@/lib/pulse";
 import { useSpotlight } from "@/lib/spotlight";
 import { ApprovalsTray } from "./approvals-tray";
 import { DeceasedConfirm } from "./deceased-confirm";
@@ -233,7 +234,7 @@ export function HospicePortal() {
                 showing it is what makes "due by 4:30" legible at 2:15 on
                 a Saturday. */}
             <span
-              className="tabular-nums text-white/80"
+              className="text-[13px] font-medium tabular-nums text-white/90"
               title="World clock — all deadlines and SLAs are measured against this time. The demo can run it faster than real time."
             >
               {new Date(state.now).toLocaleString([], {
@@ -246,9 +247,14 @@ export function HospicePortal() {
               )}
             </span>
             {state.money.pickupOverdueUsd > 0 && (
-              <span className="font-semibold text-white tabular-nums">
-                ${state.money.pickupOverdueUsd.toFixed(2)} accruing
-              </span>
+              // The money shot — rental dollars bleeding on late pickups.
+              // It climbs as the clock runs, so it pulses on every change
+              // and wears the warning color: legible from the back row.
+              <Pulse watch={state.money.pickupOverdueUsd}>
+                <span className="text-[13px] font-bold tabular-nums text-warning">
+                  ${state.money.pickupOverdueUsd.toFixed(2)} accruing
+                </span>
+              </Pulse>
             )}
             <ApprovalsTray inbox={inbox} onApprove={approveInbox} onDismiss={dismissInbox} />
             <span>M. Ruiz, RN · case manager</span>
