@@ -78,6 +78,7 @@ export function EquipmentPage({
             {SUB_TABS.map((t) => (
               <button
                 key={t.key}
+                data-spotlight={`subtab-${t.key}`}
                 onClick={() => setSubTab(t.key)}
                 className={`-mb-px border-b-[3px] px-3.5 py-2.5 text-xs ${
                   subTab === t.key

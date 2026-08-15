@@ -9,6 +9,7 @@ import type {
   Vendor,
 } from "@/lib/contracts";
 import { postJson, useWorld } from "@/lib/use-world";
+import { useSpotlight } from "@/lib/spotlight";
 import { ApprovalsTray } from "./approvals-tray";
 import { DeceasedConfirm } from "./deceased-confirm";
 import type { InboxItem } from "./derive";
@@ -75,6 +76,7 @@ export function HospicePortal() {
   const [newOrderFor, setNewOrderFor] = useState<string | undefined>(undefined);
   const [newOrderOpen, setNewOrderOpen] = useState(false);
   const [deceasedFor, setDeceasedFor] = useState<string | null>(null);
+  useSpotlight();
 
   if (error)
     return <div className="p-6 text-sm text-critical">State unavailable: {error}</div>;
@@ -193,6 +195,7 @@ export function HospicePortal() {
             {TABS.map((t) => (
               <button
                 key={t.key}
+                data-spotlight={`tab-${t.key}`}
                 onClick={() => setTab(t.key)}
                 className={`border-b-[3px] px-4 py-4 ${
                   tab === t.key
