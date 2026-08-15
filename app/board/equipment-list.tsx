@@ -6,6 +6,7 @@ import { Pulse } from "@/lib/pulse";
 import { categoryOf } from "@/lib/data/catalog";
 import { DraftCard } from "./draft-card";
 import {
+  auditRows,
   deadlineLabel,
   effectiveDeadline,
   orderNeedsAttention,
@@ -173,13 +174,18 @@ export function EquipmentList({
                           Features · the audit trail
                         </div>
                         <div className="flex flex-col gap-1">
-                          {Object.entries(o.risk.features).map(([k, v]) => (
+                          {auditRows(o.risk.features).map((row) => (
                             <div
-                              key={k}
-                              className="flex justify-between gap-2 rounded-md bg-surface px-2.5 py-1.5 text-[10px]"
+                              key={row.key}
+                              className="flex items-baseline justify-between gap-2 rounded-md bg-surface px-2.5 py-1.5 text-[10px]"
                             >
-                              <span className="font-mono text-ink-soft">{k}</span>
-                              <span className="font-medium text-ink">{String(v)}</span>
+                              <span>
+                                <span className="text-ink-soft">{row.label}</span>{" "}
+                                <span className="font-mono text-[8.5px] text-muted">{row.key}</span>
+                              </span>
+                              <span className="shrink-0 font-medium tabular-nums text-ink">
+                                {row.value}
+                              </span>
                             </div>
                           ))}
                         </div>
