@@ -2,7 +2,7 @@
 
 import { Fragment, useEffect, useMemo, useState } from "react";
 import type { Order, Patient, Vendor } from "@/lib/contracts";
-import { ALL_CATEGORIES, categoryOf } from "@/lib/data/catalog";
+import { ALL_CATEGORIES, CATALOG, categoryOf } from "@/lib/data/catalog";
 import {
   daysOnRent,
   dmeMonthlyRunRate,
@@ -39,16 +39,132 @@ const MONTH_OPTIONS = [3, 6, 12] as const;
 
 interface ChartFilterScope {
   vendorIds: Set<string>;
-  category: string;
+  // null = every item. A real Set is always a strict subset — full
+  // selection collapses back to null so a stale "11 of 11 selected"
+  // label can never happen (see EquipmentTypeFilter).
+  hcpcsIds: Set<string> | null;
   monthsBack: number;
 }
 
-function scopeOrders(orders: Order[], vendorIds: Set<string>, category: string): Order[] {
+function scopeOrders(orders: Order[], vendorIds: Set<string>, hcpcsIds: Set<string> | null): Order[] {
   return orders.filter((o) => {
     if (!vendorIds.has(o.vendorId)) return false;
-    if (category === "All") return true;
-    return o.items.some((it) => categoryOf(it.hcpcs) === category);
+    if (hcpcsIds === null) return true;
+    return o.items.some((it) => hcpcsIds.has(it.hcpcs));
   });
+}
+
+// The equipment-type filter, one level more granular than the old
+// category-only dropdown: pick specific catalog items (grouped by
+// category, with a per-category select-all), not just a whole
+// category at once — "Oxygen" used to bundle the $85/mo concentrator
+// with the $17/mo portable system with no way to isolate one. A
+// category checkbox is just "select every item under it," so the old
+// category-level filtering still works, one click instead of several.
+function EquipmentTypeFilter({
+  value,
+  onChange,
+}: {
+  value: Set<string> | null;
+  onChange: (next: Set<string> | null) => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  const byCategory = useMemo(() => {
+    const groups = new Map<string, typeof CATALOG>();
+    for (const item of CATALOG) {
+      const cat = categoryOf(item.hcpcs);
+      const list = groups.get(cat) ?? [];
+      list.push(item);
+      groups.set(cat, list);
+    }
+    return ALL_CATEGORIES.map((c) => [c, groups.get(c) ?? []] as const).filter(
+      ([, items]) => items.length > 0,
+    );
+  }, []);
+
+  const active = value ?? new Set(CATALOG.map((c) => c.hcpcs));
+  const label =
+    value === null ? "All equipment types" : `${value.size} item${value.size === 1 ? "" : "s"}`;
+
+  function commit(next: Set<string>) {
+    onChange(next.size === CATALOG.length ? null : next);
+  }
+
+  function toggleItem(hcpcs: string) {
+    const next = new Set(active);
+    if (next.has(hcpcs)) next.delete(hcpcs);
+    else next.add(hcpcs);
+    commit(next);
+  }
+
+  function toggleCategory(items: typeof CATALOG) {
+    const allIn = items.every((i) => active.has(i.hcpcs));
+    const next = new Set(active);
+    for (const i of items) {
+      if (allIn) next.delete(i.hcpcs);
+      else next.add(i.hcpcs);
+    }
+    commit(next);
+  }
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="rounded-md border border-dashed border-line-strong bg-page px-2.5 py-1.5 text-[11px] text-ink"
+      >
+        {label}
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 top-[calc(100%+6px)] z-50 max-h-[340px] w-[260px] overflow-y-auto rounded-xl border border-line bg-surface p-3 shadow-2xl">
+            <button
+              onClick={() => onChange(null)}
+              className={`mb-2.5 w-full rounded-md border px-2.5 py-1.5 text-left text-[11px] ${
+                value === null ? "border-brand bg-brand/10 text-brand" : "border-line-strong text-ink-soft"
+              }`}
+            >
+              All equipment types
+            </button>
+            {byCategory.map(([cat, items]) => {
+              const allIn = items.every((i) => active.has(i.hcpcs));
+              const someIn = items.some((i) => active.has(i.hcpcs));
+              return (
+                <div key={cat} className="mb-2.5 last:mb-0">
+                  <label className="mb-1 flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-wide text-muted">
+                    <input
+                      type="checkbox"
+                      checked={allIn}
+                      ref={(el) => {
+                        if (el) el.indeterminate = someIn && !allIn;
+                      }}
+                      onChange={() => toggleCategory(items)}
+                    />
+                    {cat}
+                  </label>
+                  {items.map((item) => (
+                    <label
+                      key={item.hcpcs}
+                      className="flex items-center gap-1.5 py-0.5 pl-4 text-[10.5px] text-ink"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={active.has(item.hcpcs)}
+                        onChange={() => toggleItem(item.hcpcs)}
+                      />
+                      {item.name}
+                    </label>
+                  ))}
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </div>
+  );
 }
 
 // Per-chart filter override — the industry-standard escape hatch from a
@@ -61,14 +177,14 @@ function scopeOrders(orders: Order[], vendorIds: Set<string>, category: string):
 function ChartScope({
   vendors,
   globalVendorIds,
-  globalCategory,
+  globalHcpcsIds,
   globalMonthsBack,
   includeMonths,
   children,
 }: {
   vendors: Vendor[];
   globalVendorIds: Set<string>;
-  globalCategory: string;
+  globalHcpcsIds: Set<string> | null;
   globalMonthsBack: number;
   includeMonths?: boolean;
   children: (scope: ChartFilterScope) => React.ReactNode;
@@ -77,14 +193,14 @@ function ChartScope({
 
   const effective: ChartFilterScope = custom ?? {
     vendorIds: globalVendorIds,
-    category: globalCategory,
+    hcpcsIds: globalHcpcsIds,
     monthsBack: globalMonthsBack,
   };
 
   function detach() {
     setCustom({
       vendorIds: new Set(globalVendorIds),
-      category: globalCategory,
+      hcpcsIds: globalHcpcsIds ? new Set(globalHcpcsIds) : null,
       monthsBack: globalMonthsBack,
     });
   }
@@ -93,7 +209,7 @@ function ChartScope({
     setCustom((prev) => {
       const base = prev ?? {
         vendorIds: new Set(globalVendorIds),
-        category: globalCategory,
+        hcpcsIds: globalHcpcsIds ? new Set(globalHcpcsIds) : null,
         monthsBack: globalMonthsBack,
       };
       const next = new Set(base.vendorIds);
@@ -134,18 +250,10 @@ function ChartScope({
                 {v.name}
               </button>
             ))}
-            <select
-              value={custom.category}
-              onChange={(e) => setCustom((c) => (c ? { ...c, category: e.target.value } : c))}
-              className="rounded-md border border-dashed border-line-strong bg-page px-2 py-0.5 text-[10px] text-ink"
-            >
-              <option value="All">All types</option>
-              {ALL_CATEGORIES.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
+            <EquipmentTypeFilter
+              value={custom.hcpcsIds}
+              onChange={(next) => setCustom((c) => (c ? { ...c, hcpcsIds: next } : c))}
+            />
             {includeMonths && (
               <select
                 value={custom.monthsBack}
@@ -644,7 +752,7 @@ export function AnalyticsTab({
   now: number;
 }) {
   const [vendorFilter, setVendorFilter] = useState<Set<string> | null>(null); // null = all
-  const [category, setCategory] = useState<string>("All");
+  const [hcpcsIds, setHcpcsIds] = useState<Set<string> | null>(null); // null = all equipment
   const [monthsBack, setMonthsBack] = useState<number>(6);
 
   // The year of ord-h history is immutable between resets, so it's
@@ -694,11 +802,8 @@ export function AnalyticsTab({
   // breakdown chart below deliberately uses vendorScoped instead, so
   // narrowing to one type doesn't collapse its own chart to one bar.
   const scoped = useMemo(
-    () =>
-      category === "All"
-        ? vendorScoped
-        : vendorScoped.filter((o) => o.items.some((it) => categoryOf(it.hcpcs) === category)),
-    [vendorScoped, category],
+    () => scopeOrders(vendorScoped, activeVendorIds, hcpcsIds),
+    [vendorScoped, activeVendorIds, hcpcsIds],
   );
 
   // Every duration-based figure below must use ENGINE time (state.now),
@@ -780,18 +885,7 @@ export function AnalyticsTab({
               {v.name}
             </button>
           ))}
-          <select
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            className="rounded-md border border-dashed border-line-strong bg-page px-2.5 py-1.5 text-[11px] text-ink"
-          >
-            <option value="All">All equipment types</option>
-            {ALL_CATEGORIES.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
+          <EquipmentTypeFilter value={hcpcsIds} onChange={setHcpcsIds} />
           <select
             value={monthsBack}
             onChange={(e) => setMonthsBack(Number(e.target.value))}
@@ -816,7 +910,11 @@ export function AnalyticsTab({
         <StatTile
           label="DME spend to date"
           value={`$${Math.round(totalSpend).toLocaleString()}`}
-          sub={category === "All" ? "cumulative, all orders" : `cumulative, ${category}`}
+          sub={
+            hcpcsIds === null
+              ? "cumulative, all orders"
+              : `cumulative, ${hcpcsIds.size} item${hcpcsIds.size === 1 ? "" : "s"}`
+          }
         />
         <StatTile
           label="Rx spend (monthly)"
@@ -854,14 +952,14 @@ export function AnalyticsTab({
         <ChartScope
           vendors={vendors}
           globalVendorIds={activeVendorIds}
-          globalCategory={category}
+          globalHcpcsIds={hcpcsIds}
           globalMonthsBack={monthsBack}
           includeMonths
         >
           {(scope) => {
             const chartMonths = lastNMonths(now, scope.monthsBack);
             const chartVendors = vendors.filter((v) => scope.vendorIds.has(v.id));
-            const monthly = monthlyByVendor(monthlyRows, chartMonths, [...scope.vendorIds], scope.category);
+            const monthly = monthlyByVendor(monthlyRows, chartMonths, [...scope.vendorIds], scope.hcpcsIds);
             if (chartVendors.length === 0)
               return <div className="py-6 text-center text-[11px] text-muted">No vendors selected.</div>;
             return <MonthlyTrendChart months={chartMonths} vendors={chartVendors} monthly={monthly} />;
@@ -884,11 +982,11 @@ export function AnalyticsTab({
           <ChartScope
             vendors={vendors}
             globalVendorIds={activeVendorIds}
-            globalCategory={category}
+            globalHcpcsIds={hcpcsIds}
             globalMonthsBack={monthsBack}
           >
             {(scope) => {
-              const chartOrders = scopeOrders(allOrders, scope.vendorIds, scope.category);
+              const chartOrders = scopeOrders(allOrders, scope.vendorIds, scope.hcpcsIds);
               const topItems = topEquipment(chartOrders, now).slice(0, 6);
               const maxCount = Math.max(1, ...topItems.map((i) => i.count));
               if (topItems.length === 0)
@@ -935,11 +1033,11 @@ export function AnalyticsTab({
           <ChartScope
             vendors={vendors}
             globalVendorIds={activeVendorIds}
-            globalCategory={category}
+            globalHcpcsIds={hcpcsIds}
             globalMonthsBack={monthsBack}
           >
             {(scope) => {
-              const chartOrders = scopeOrders(allOrders, scope.vendorIds, scope.category);
+              const chartOrders = scopeOrders(allOrders, scope.vendorIds, scope.hcpcsIds);
               const losRows = lengthOfUseRows(chartOrders, now);
               return <LengthOfUseScatter rows={losRows} />;
             }}
