@@ -41,6 +41,8 @@ export function VendorQueue({ token }: { token: string }) {
     `?scope=vendor&token=${encodeURIComponent(token)}`,
   );
   const [accepting, setAccepting] = useState<string | null>(null);
+  const [delaying, setDelaying] = useState<string | null>(null);
+  const [rescheduling, setRescheduling] = useState<string | null>(null);
   const [sheet, setSheet] = useState<SheetTarget>(null);
 
   if (error)
@@ -164,6 +166,35 @@ export function VendorQueue({ token }: { token: string }) {
                   Mark delivered
                 </ActionBtn>
               )}
+              {delaying === o.id ? (
+                <div className="flex flex-col gap-1.5 pt-2">
+                  <div className="text-xs font-medium text-ink-soft">
+                    Propose a new delivery time — the care team and family see it:
+                  </div>
+                  {ETA_CHOICES.map((c) => (
+                    <button
+                      key={c.label}
+                      onClick={() => {
+                        // Same-state transition: state stays put, the ETA and
+                        // the audit trail move. The next tick re-judges risk
+                        // against the deadline honestly.
+                        move(o, o.state, {
+                          etaAt: new Date(engineNow + c.hours * 3600_000).toISOString(),
+                        });
+                        setDelaying(null);
+                      }}
+                      className="rounded-md border border-line bg-surface px-3 py-2.5 text-left text-sm font-medium text-ink active:bg-cream"
+                    >
+                      {c.label}
+                    </button>
+                  ))}
+                  <CancelLink onClick={() => setDelaying(null)} />
+                </div>
+              ) : (
+                <SubtleBtn onClick={() => setDelaying(o.id)}>
+                  Running late? Propose a new time
+                </SubtleBtn>
+              )}
             </OrderCard>
           ))}
           {active.length === 0 && <Empty text="Nothing in progress." />}
@@ -190,26 +221,55 @@ export function VendorQueue({ token }: { token: string }) {
                     <div className="text-xs font-medium text-ink-soft">
                       Commit a retrieval window (family sees this):
                     </div>
-                    {[2, 5, 20].map((h) => (
-                      <button
-                        key={h}
-                        onClick={() =>
-                          pickupAction(o, "commit_window", {
-                            startAt: new Date(engineNow + h * 3600_000).toISOString(),
-                            endAt: new Date(engineNow + (h + 2) * 3600_000).toISOString(),
-                          })
-                        }
-                        className="rounded-md border border-line bg-surface px-3 py-2.5 text-left text-sm font-medium text-ink active:bg-cream"
-                      >
-                        {h === 2 ? "Today, next 2–4 hours" : h === 5 ? "Today, later window" : "Tomorrow morning"}
-                      </button>
-                    ))}
+                    <WindowChoices
+                      onPick={(startAt, endAt) =>
+                        pickupAction(o, "commit_window", { startAt, endAt })
+                      }
+                      engineNow={engineNow}
+                    />
                   </div>
                 )}
                 {p.acknowledgedAt && p.windowStart && (
-                  <ActionBtn onClick={() => setSheet({ order: o, mode: "pickup" })}>
-                    Mark picked up
-                  </ActionBtn>
+                  <>
+                    <div className="mt-2 text-xs text-ink-soft">
+                      Window:{" "}
+                      <span className="font-medium text-ink">
+                        {new Date(p.windowStart).toLocaleString([], {
+                          weekday: "short",
+                          hour: "numeric",
+                          minute: "2-digit",
+                        })}
+                        –
+                        {p.windowEnd &&
+                          new Date(p.windowEnd).toLocaleTimeString([], {
+                            hour: "numeric",
+                            minute: "2-digit",
+                          })}
+                      </span>
+                    </div>
+                    <ActionBtn onClick={() => setSheet({ order: o, mode: "pickup" })}>
+                      Mark picked up
+                    </ActionBtn>
+                    {rescheduling === o.id ? (
+                      <div className="flex flex-col gap-1.5 pt-2">
+                        <div className="text-xs font-medium text-ink-soft">
+                          Propose a new retrieval window (family sees this):
+                        </div>
+                        <WindowChoices
+                          onPick={(startAt, endAt) => {
+                            pickupAction(o, "commit_window", { startAt, endAt });
+                            setRescheduling(null);
+                          }}
+                          engineNow={engineNow}
+                        />
+                        <CancelLink onClick={() => setRescheduling(null)} />
+                      </div>
+                    ) : (
+                      <SubtleBtn onClick={() => setRescheduling(o.id)}>
+                        Can&apos;t make the window? Reschedule
+                      </SubtleBtn>
+                    )}
+                  </>
                 )}
               </OrderCard>
             );
@@ -274,6 +334,63 @@ function ActionBtn({
       className="mt-2 w-full rounded-md bg-secondary px-3 py-3 text-sm font-semibold text-white active:bg-secondary-hover"
     >
       {children}
+    </button>
+  );
+}
+
+// The same three windows whether committing fresh or rescheduling —
+// commit_window overwrites, so a re-commit IS the reschedule.
+function WindowChoices({
+  onPick,
+  engineNow,
+}: {
+  onPick: (startAt: string, endAt: string) => void;
+  engineNow: number;
+}) {
+  return (
+    <>
+      {[2, 5, 20].map((h) => (
+        <button
+          key={h}
+          onClick={() =>
+            onPick(
+              new Date(engineNow + h * 3600_000).toISOString(),
+              new Date(engineNow + (h + 2) * 3600_000).toISOString(),
+            )
+          }
+          className="rounded-md border border-line bg-surface px-3 py-2.5 text-left text-sm font-medium text-ink active:bg-cream"
+        >
+          {h === 2 ? "Today, next 2–4 hours" : h === 5 ? "Today, later window" : "Tomorrow morning"}
+        </button>
+      ))}
+    </>
+  );
+}
+
+function SubtleBtn({
+  onClick,
+  children,
+}: {
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="mt-1.5 w-full rounded-md border border-line bg-surface px-3 py-2 text-sm font-medium text-ink-soft active:bg-cream"
+    >
+      {children}
+    </button>
+  );
+}
+
+function CancelLink({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="self-start px-1 py-1 text-xs text-muted underline"
+    >
+      Never mind
     </button>
   );
 }

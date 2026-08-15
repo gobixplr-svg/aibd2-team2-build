@@ -1,8 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import type { OrderState, Patient } from "@/lib/contracts";
 import { Pulse } from "@/lib/pulse";
-import { useWorld } from "@/lib/use-world";
+import { postJson, useWorld } from "@/lib/use-world";
 
 interface FamilyOrder {
   id: string;
@@ -19,12 +20,51 @@ interface CareMessage {
   at: string;
 }
 
+// Slot labels only — no ISO math. The message is plain family language;
+// the care team and vendor pick the actual new time on their side.
+const CONFLICT_SLOTS = [
+  { label: "Earlier today", phrase: "earlier today" },
+  { label: "This evening", phrase: "this evening" },
+  { label: "Tomorrow morning", phrase: "tomorrow morning" },
+  { label: "Tomorrow afternoon", phrase: "tomorrow afternoon" },
+];
+
+const fmt = (iso: string, opts: Intl.DateTimeFormatOptions) =>
+  new Date(iso).toLocaleString([], opts);
+
+// The scheduled moment a family could have a conflict with: a delivery
+// ETA, or a committed pickup window. Completion is on the pickup record.
+function conflictMoment(
+  o: FamilyOrder,
+): { kind: "delivery" | "pickup"; text: string } | null {
+  if (o.pickup?.completedAt) return null;
+  if (["dispatched", "in_transit", "at_risk"].includes(o.state) && o.etaAt)
+    return {
+      kind: "delivery",
+      text: `today around ${fmt(o.etaAt, { hour: "numeric", minute: "2-digit" })}`,
+    };
+  if (
+    (o.state === "pickup_triggered" || o.state === "pickup_delayed") &&
+    o.pickup?.windowStart &&
+    o.pickup?.windowEnd
+  )
+    return {
+      kind: "pickup",
+      text: `${fmt(o.pickup.windowStart, { weekday: "long", hour: "numeric" })}–${fmt(o.pickup.windowEnd, { hour: "numeric" })}`,
+    };
+  return null;
+}
+
 export function FamilyView({ token }: { token: string }) {
   const { state, error } = useWorld<{
     patient: Patient;
     orders: FamilyOrder[];
     careMessages?: CareMessage[];
   }>(`?scope=family&token=${encodeURIComponent(token)}`);
+
+  const [conflictFor, setConflictFor] = useState<string | null>(null);
+  const [notified, setNotified] = useState<Record<string, boolean>>({});
+  const [sendFailed, setSendFailed] = useState<string | null>(null);
 
   if (error)
     return (
@@ -38,6 +78,33 @@ export function FamilyView({ token }: { token: string }) {
   const { patient, orders } = state;
   const careMessages = state.careMessages ?? [];
   const deceased = patient.status === "deceased";
+
+  async function sendConflict(
+    o: FamilyOrder,
+    moment: { kind: "delivery" | "pickup"; text: string },
+    slot: (typeof CONFLICT_SLOTS)[number],
+  ) {
+    const items = o.items.map((n) => n.toLowerCase()).join(" and ");
+    // Plain first-person family text — it rides the same inbound-message
+    // pipeline a typed text would, so Hermes triages it and the care
+    // team sees it next to everything else.
+    const body =
+      moment.kind === "delivery"
+        ? `The ${items} is scheduled to arrive ${moment.text}, but that time doesn't work for our family — ${slot.phrase} would be better. Could it be rescheduled?`
+        : `The pickup of the ${items} is scheduled for ${moment.text}, but that window doesn't work for us — ${slot.phrase} would be better. Could it be rescheduled?`;
+    const ok = await postJson("/api/messages", {
+      patientId: patient.id,
+      body,
+      from: "family",
+    });
+    if (ok) {
+      setNotified((n) => ({ ...n, [o.id]: true }));
+      setConflictFor(null);
+      setSendFailed(null);
+    } else {
+      setSendFailed(o.id);
+    }
+  }
 
   return (
     <div className="min-h-dvh w-full bg-cream">
@@ -62,12 +129,57 @@ export function FamilyView({ token }: { token: string }) {
         <div className="flex flex-col gap-3">
           {orders.map((o) => {
             const line = friendlyLine(o, deceased);
+            const moment = conflictMoment(o);
             return (
               <Pulse key={o.id} watch={line.headline} className="rounded-lg bg-surface border border-line p-4">
                 <div className="text-sm font-semibold text-ink leading-snug">
                   {line.headline}
                 </div>
                 <p className="mt-1.5 text-sm leading-relaxed text-ink-soft">{line.body}</p>
+
+                {moment && notified[o.id] && (
+                  <p className="mt-3 text-sm font-medium text-teal">
+                    ✓ Your care team has been notified — they&apos;ll confirm a new
+                    time right here.
+                  </p>
+                )}
+                {moment && !notified[o.id] && conflictFor !== o.id && (
+                  <button
+                    onClick={() => setConflictFor(o.id)}
+                    className="mt-3 text-left text-sm font-medium text-secondary underline"
+                  >
+                    Does this time not work? Tell your care team
+                  </button>
+                )}
+                {moment && !notified[o.id] && conflictFor === o.id && (
+                  <div className="mt-3 flex flex-col gap-1.5">
+                    <div className="text-xs font-medium text-ink-soft">
+                      What would work better? Your care team will confirm the
+                      new time.
+                    </div>
+                    {CONFLICT_SLOTS.map((slot) => (
+                      <button
+                        key={slot.label}
+                        onClick={() => sendConflict(o, moment, slot)}
+                        className="rounded-md border border-line bg-cream px-3 py-2.5 text-left text-sm font-medium text-ink active:bg-line"
+                      >
+                        {slot.label}
+                      </button>
+                    ))}
+                    {sendFailed === o.id && (
+                      <p className="text-xs text-ink-soft">
+                        That didn&apos;t go through — please call the number below
+                        instead.
+                      </p>
+                    )}
+                    <button
+                      onClick={() => setConflictFor(null)}
+                      className="self-start px-1 py-1 text-xs text-muted underline"
+                    >
+                      Never mind
+                    </button>
+                  </div>
+                )}
               </Pulse>
             );
           })}
