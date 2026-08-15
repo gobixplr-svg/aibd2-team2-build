@@ -26,7 +26,7 @@ function ReasonList({ reasons }: { reasons?: string[] }) {
       {plain.map((r) => (
         <div
           key={r}
-          className="flex gap-1.5 rounded-md border border-line bg-page px-2 py-1.5 text-[10px] leading-snug text-ink-soft"
+          className="flex gap-1.5 rounded-md border border-line bg-page px-2 py-1.5 text-[12px] leading-snug text-ink-soft"
         >
           <span className="font-bold text-warning">·</span>
           <span>{r}</span>
@@ -35,10 +35,10 @@ function ReasonList({ reasons }: { reasons?: string[] }) {
       {triage && (
         <div className="mt-0.5 rounded-md border border-line bg-page px-2 py-1.5">
           <div className="flex items-baseline justify-between gap-2">
-            <span className="text-[9px] uppercase tracking-wide text-muted">
+            <span className="text-[11px] uppercase tracking-wide text-muted">
               Hermes triage · rank {triage.rank}
             </span>
-            <span className="text-[10px] font-semibold tabular-nums text-ink">
+            <span className="text-[12px] font-semibold tabular-nums text-ink">
               {Math.round(triage.confidence * 100)}% confidence
             </span>
           </div>
@@ -49,7 +49,7 @@ function ReasonList({ reasons }: { reasons?: string[] }) {
             />
           </div>
           {triage.summary && (
-            <div className="mt-1 text-[10px] leading-snug text-muted">{triage.summary}</div>
+            <div className="mt-1 text-[12px] leading-snug text-muted">{triage.summary}</div>
           )}
         </div>
       )}
@@ -76,7 +76,7 @@ export function ApprovalsTray({
       <button
         data-spotlight="approvals"
         onClick={() => setOpen((v) => !v)}
-        className={`relative rounded-md px-3 py-1.5 text-[11px] font-semibold ${
+        className={`relative rounded-md px-3 py-1.5 text-[13px] font-semibold ${
           openApprovals.length > 0
             ? "bg-warning/20 text-white border border-warning/60"
             : "border border-white/25 text-white/70"
@@ -84,7 +84,7 @@ export function ApprovalsTray({
       >
         Approvals
         {openApprovals.length > 0 && (
-          <span className="ml-1.5 rounded-full bg-critical px-1.5 py-0.5 text-[10px] font-bold text-white">
+          <span className="ml-1.5 rounded-full bg-critical px-1.5 py-0.5 text-[12px] font-bold text-white">
             {openApprovals.length}
           </span>
         )}
@@ -94,31 +94,31 @@ export function ApprovalsTray({
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
           <div className="absolute right-0 top-[calc(100%+8px)] z-50 w-[360px] max-h-[70vh] overflow-y-auto rounded-xl border border-line bg-surface p-3.5 shadow-2xl">
-            <div className="mb-2.5 text-[10px] uppercase tracking-wide text-muted">
+            <div className="mb-2.5 text-[12px] uppercase tracking-wide text-muted">
               Approvals · {openApprovals.length}
             </div>
             {openApprovals.length === 0 ? (
-              <div className="text-[11px] text-muted">
+              <div className="text-[13px] text-muted">
                 Nothing waiting — a good night shift ends with an empty tray.
               </div>
             ) : (
               openApprovals.map((a) => (
                 <Pulse key={a.id} watch={a.detail} className="border-b border-line py-2 last:border-b-0">
                   <div className="flex items-baseline gap-2">
-                    <span className="text-[9px] uppercase tracking-wide text-muted">
+                    <span className="text-[11px] uppercase tracking-wide text-muted">
                       {INBOX_KIND_LABEL[a.kind]}
                     </span>
                     {a.context && (
-                      <span className="text-[10px] font-semibold text-ink">{a.context}</span>
+                      <span className="text-[12px] font-semibold text-ink">{a.context}</span>
                     )}
                   </div>
-                  <div className="my-1.5 text-[11px] font-medium leading-relaxed text-ink">
+                  <div className="my-1.5 text-[13px] font-medium leading-relaxed text-ink">
                     {a.detail}
                   </div>
                   <ReasonList reasons={a.reasons} />
                   {a.draft !== undefined && (
                     <div className="mb-2">
-                      <div className="mb-1 text-[9px] uppercase tracking-wide text-muted">
+                      <div className="mb-1 text-[11px] uppercase tracking-wide text-muted">
                         Draft — edit before sending
                       </div>
                       <textarea
@@ -127,7 +127,7 @@ export function ApprovalsTray({
                           setDraftEdits((d) => ({ ...d, [a.id]: e.target.value }))
                         }
                         rows={4}
-                        className="w-full resize-none rounded-md border border-dashed border-line-strong bg-page px-2.5 py-2 text-[11px] leading-relaxed text-ink"
+                        className="w-full resize-none rounded-md border border-dashed border-line-strong bg-page px-2.5 py-2 text-[13px] leading-relaxed text-ink"
                       />
                     </div>
                   )}
@@ -139,13 +139,13 @@ export function ApprovalsTray({
                           a.draft !== undefined ? (draftEdits[a.id] ?? a.draft) : undefined,
                         )
                       }
-                      className="rounded-md bg-brand px-3 py-1.5 text-[10px] font-semibold text-white"
+                      className="rounded-md bg-brand px-3 py-1.5 text-[12px] font-semibold text-white"
                     >
                       {a.draft !== undefined ? "Approve & send" : "Approve"}
                     </button>
                     <button
                       onClick={() => onDismiss(a.id)}
-                      className="rounded-md border border-line-strong px-2.5 py-1.5 text-[10px] text-ink-soft"
+                      className="rounded-md border border-line-strong px-2.5 py-1.5 text-[12px] text-ink-soft"
                     >
                       Dismiss
                     </button>

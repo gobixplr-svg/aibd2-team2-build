@@ -7,13 +7,13 @@ export default function Home() {
     <main className="flex-1 flex flex-col items-center justify-center px-4 py-16">
       <div className="w-full max-w-sm md:max-w-2xl flex flex-col gap-6">
         <div>
-          <div className="text-xs font-semibold uppercase tracking-wider text-brand">
+          <div className="text-sm font-semibold uppercase tracking-wider text-brand">
             BetterRX Builder Day · Team 2
           </div>
-          <h1 className="text-3xl font-bold text-navy">
+          <h1 className="text-[34px] font-bold text-navy">
             Better<span className="text-brand">RX</span>
           </h1>
-          <p className="mt-1 text-sm text-ink-soft">
+          <p className="mt-1 text-base text-ink-soft">
             The shared status board between hospices and DME vendors — it sees
             the failure coming before the family does.
           </p>
@@ -46,7 +46,7 @@ export default function Home() {
           />
         </nav>
 
-        <p className="text-xs text-muted">
+        <p className="text-sm text-muted">
           Synthetic data only. No real patients, vendors, or PHI.
         </p>
       </div>
@@ -71,11 +71,11 @@ function Surface({
       className="rounded-lg border border-line bg-surface px-4 py-3 shadow-sm hover:border-line-strong"
     >
       <div className="flex items-baseline justify-between gap-2">
-        <span className="text-sm font-semibold text-ink">{title}</span>
-        <span className="text-[11px] text-muted">{who}</span>
+        <span className="text-base font-semibold text-ink">{title}</span>
+        <span className="text-[13px] text-muted">{who}</span>
       </div>
       <div className="mt-0.5 flex items-baseline justify-between gap-2">
-        <span className="text-xs text-ink-soft">{note}</span>
+        <span className="text-sm text-ink-soft">{note}</span>
       </div>
     </Link>
   );

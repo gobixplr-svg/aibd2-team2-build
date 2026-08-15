@@ -26,24 +26,24 @@ export function NoteModal({
         className="w-full max-w-md rounded-2xl bg-surface p-5 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="mb-3.5 text-sm font-semibold text-ink">{title}</div>
+        <div className="mb-3.5 text-base font-semibold text-ink">{title}</div>
         <textarea
           value={note}
           onChange={(e) => setNote(e.target.value)}
           rows={4}
           autoFocus
-          className="w-full rounded-md border border-line bg-page px-3 py-2.5 text-sm leading-relaxed text-ink"
+          className="w-full rounded-md border border-line bg-page px-3 py-2.5 text-base leading-relaxed text-ink"
         />
         <div className="mt-3.5 flex gap-2">
           <button
             onClick={() => onSave(note.trim())}
-            className="flex-1 rounded-md bg-brand px-3 py-2.5 text-center text-xs font-semibold text-white"
+            className="flex-1 rounded-md bg-brand px-3 py-2.5 text-center text-sm font-semibold text-white"
           >
             Save
           </button>
           <button
             onClick={onCancel}
-            className="rounded-md border border-line-strong bg-surface px-4 py-2.5 text-xs text-ink-soft"
+            className="rounded-md border border-line-strong bg-surface px-4 py-2.5 text-sm text-ink-soft"
           >
             Cancel
           </button>

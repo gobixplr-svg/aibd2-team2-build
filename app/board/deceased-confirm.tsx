@@ -30,16 +30,16 @@ export function DeceasedConfirm({
         className="w-full max-w-md rounded-2xl bg-surface p-5 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="text-[15px] font-semibold text-ink mb-2">
+        <div className="text-[17px] font-semibold text-ink mb-2">
           Start equipment pickup now?
         </div>
-        <p className="mb-3.5 text-xs leading-relaxed text-ink-soft">
+        <p className="mb-3.5 text-sm leading-relaxed text-ink-soft">
           This records the passing and dispatches pickup for{" "}
           {assets.length === 1 ? "the asset" : `all ${assets.length} assets`} immediately. It
           can&apos;t be undone.
         </p>
 
-        <div className="mb-3.5 rounded-md bg-page p-3 text-[11px] leading-relaxed text-ink">
+        <div className="mb-3.5 rounded-md bg-page p-3 text-[13px] leading-relaxed text-ink">
           {assets.length === 0 ? (
             <div className="text-muted">No delivered equipment on file for {patient.label}.</div>
           ) : (
@@ -50,12 +50,12 @@ export function DeceasedConfirm({
               </div>
             ))
           )}
-          <div className="mt-2 text-[10px] text-muted">
+          <div className="mt-2 text-[12px] text-muted">
             Pickup due within 24 hours of trigger — the hospice pays until retrieval.
           </div>
         </div>
 
-        <label className="mb-3.5 flex items-center gap-2 text-[11px] text-ink">
+        <label className="mb-3.5 flex items-center gap-2 text-[13px] text-ink">
           <input
             type="checkbox"
             checked={confirmed}
@@ -70,13 +70,13 @@ export function DeceasedConfirm({
           <button
             onClick={onConfirm}
             disabled={!confirmed}
-            className="flex-1 rounded-md bg-brand px-3 py-2.5 text-center text-xs font-semibold text-white disabled:opacity-40"
+            className="flex-1 rounded-md bg-brand px-3 py-2.5 text-center text-sm font-semibold text-white disabled:opacity-40"
           >
             Trigger pickup
           </button>
           <button
             onClick={onCancel}
-            className="rounded-md border border-line-strong bg-surface px-4 py-2.5 text-xs text-ink-soft"
+            className="rounded-md border border-line-strong bg-surface px-4 py-2.5 text-sm text-ink-soft"
           >
             Cancel
           </button>

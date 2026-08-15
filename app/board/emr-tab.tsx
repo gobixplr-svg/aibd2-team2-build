@@ -84,7 +84,7 @@ function ServiceIssueModal({
         style={{ borderColor: HCHB.powder }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="mb-3 text-[13px] font-semibold" style={{ color: HCHB.navy }}>
+        <div className="mb-3 text-[15px] font-semibold" style={{ color: HCHB.navy }}>
           {title}
         </div>
         <textarea
@@ -92,20 +92,20 @@ function ServiceIssueModal({
           onChange={(e) => setNote(e.target.value)}
           rows={4}
           autoFocus
-          className="w-full rounded-md border px-3 py-2.5 text-[11.5px] leading-relaxed"
+          className="w-full rounded-md border px-3 py-2.5 text-[13.5px] leading-relaxed"
           style={{ borderColor: HCHB.powder, background: HCHB.paper, color: HCHB.navy }}
         />
         <div className="mt-3 flex gap-1.5">
           <button
             onClick={() => onSave(note.trim())}
-            className="flex-1 rounded px-3 py-2 text-center text-[11px] font-semibold text-white"
+            className="flex-1 rounded px-3 py-2 text-center text-[13px] font-semibold text-white"
             style={{ background: HCHB.blue }}
           >
             Save
           </button>
           <button
             onClick={onCancel}
-            className="rounded border px-3 py-2 text-[11px]"
+            className="rounded border px-3 py-2 text-[13px]"
             style={{ borderColor: HCHB.powder, color: HCHB.navy }}
           >
             Cancel
@@ -119,13 +119,13 @@ function ServiceIssueModal({
 function VendorBadge({ connected }: { connected: boolean }) {
   return connected ? (
     <span
-      className="ml-1.5 rounded-full px-1.5 py-0.5 text-[8.5px] font-semibold uppercase tracking-wide"
+      className="ml-1.5 rounded-full px-1.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide"
       style={{ background: HCHB.powder, color: HCHB.navy }}
     >
       Portal
     </span>
   ) : (
-    <span className="ml-1.5 rounded-full border border-line-strong px-1.5 py-0.5 text-[8.5px] font-semibold uppercase tracking-wide text-muted">
+    <span className="ml-1.5 rounded-full border border-line-strong px-1.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-muted">
       Phone/email only
     </span>
   );
@@ -189,31 +189,31 @@ export function EmrTab({
           className="flex items-center gap-2.5 px-5 py-3"
           style={{ background: HCHB.navy }}
         >
-          <span className="text-[13px] font-bold tracking-tight text-white">
+          <span className="text-[15px] font-bold tracking-tight text-white">
             home<span style={{ color: HCHB.blueSoft, fontWeight: 700 }}>care</span> home
             <span style={{ color: HCHB.blueSoft, fontWeight: 700 }}>base</span>
           </span>
           <span
-            className="rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide"
+            className="rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide"
             style={{ background: HCHB.blueSoft, color: "#fff" }}
           >
             DME Tracker
           </span>
-          <span className="ml-auto text-[9px] uppercase tracking-wide text-white/50">
+          <span className="ml-auto text-[11px] uppercase tracking-wide text-white/50">
             synthetic simulation
           </span>
         </div>
 
         <div className="p-5" style={{ background: HCHB.paper }}>
-          <p className="mb-4 max-w-2xl text-[11px] leading-relaxed" style={{ color: HCHB.navy }}>
+          <p className="mb-4 max-w-2xl text-[13px] leading-relaxed" style={{ color: HCHB.navy }}>
             A third-party DME tracker hospices bolt onto Homecare Homebase. Synthetic simulation
             only — not affiliated with or endorsed by HCHB.
           </p>
 
           <div className="overflow-hidden rounded-lg border bg-white" style={{ borderColor: HCHB.powder }}>
-            <table className="w-full text-[11px]">
+            <table className="w-full text-[13px]">
               <thead>
-                <tr style={{ background: HCHB.powder, color: HCHB.navy }} className="text-left text-[9px] uppercase tracking-wide">
+                <tr style={{ background: HCHB.powder, color: HCHB.navy }} className="text-left text-[11px] uppercase tracking-wide">
                   <th className="px-3 py-2 font-semibold">Item</th>
                   <th className="px-3 py-2 font-semibold">Patient</th>
                   <th className="px-3 py-2 font-semibold">Vendor</th>
@@ -237,7 +237,7 @@ export function EmrTab({
                           <div className="font-medium" style={{ color: HCHB.navy }}>
                             {o.items.map((it) => it.name).join(", ")}
                           </div>
-                          <div className="font-mono text-[9.5px] text-muted">
+                          <div className="font-mono text-[11px] text-muted">
                             {o.items.map((it) => it.hcpcs).join(" + ")}
                           </div>
                         </td>
@@ -259,7 +259,7 @@ export function EmrTab({
                         </td>
                         <td className="whitespace-nowrap px-3 py-2.5">
                           <span
-                            className="inline-block whitespace-nowrap rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide"
+                            className="inline-block whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide"
                             style={TONE[status.tone]}
                           >
                             {status.label}
@@ -273,7 +273,7 @@ export function EmrTab({
                                   e.stopPropagation();
                                   requestPickup(o);
                                 }}
-                                className="rounded px-2 py-1 text-[10px] font-semibold text-white"
+                                className="rounded px-2 py-1 text-[12px] font-semibold text-white"
                                 style={{ background: HCHB.blue }}
                               >
                                 Request pickup
@@ -284,7 +284,7 @@ export function EmrTab({
                                 e.stopPropagation();
                                 flagServiceIssue(o);
                               }}
-                              className="rounded border px-2 py-1 text-[10px]"
+                              className="rounded border px-2 py-1 text-[12px]"
                               style={{ borderColor: HCHB.powder, color: HCHB.navy }}
                             >
                               Flag service issue
@@ -296,7 +296,7 @@ export function EmrTab({
                         <tr style={{ background: HCHB.paper }}>
                           <td colSpan={6} className="px-3 pb-3 pt-0.5">
                             <div
-                              className="rounded-md border bg-white p-3 text-[11px] leading-relaxed"
+                              className="rounded-md border bg-white p-3 text-[13px] leading-relaxed"
                               style={{ borderColor: HCHB.powder, color: HCHB.navy }}
                             >
                               <div>Vendor: {vendorName(o.vendorId)}</div>
@@ -324,17 +324,17 @@ export function EmrTab({
               </tbody>
             </table>
             {orders.length === 0 && (
-              <div className="py-8 text-center text-[11px] text-muted">No DME orders on file.</div>
+              <div className="py-8 text-center text-[13px] text-muted">No DME orders on file.</div>
             )}
           </div>
         </div>
       </div>
 
       <div className="mt-5 rounded-xl border border-line bg-surface p-4">
-        <div className="mb-1 text-[9px] uppercase tracking-wide text-muted">
+        <div className="mb-1 text-[11px] uppercase tracking-wide text-muted">
           Patient ADT feed — upstream trigger
         </div>
-        <p className="mb-3 text-[11px] leading-relaxed text-ink-soft">
+        <p className="mb-3 text-[13px] leading-relaxed text-ink-soft">
           A death event opens a pickup request on this patient&apos;s delivered equipment in the
           tracker above automatically. In a real HL7 feed this is the same discharge event
           (<span className="font-mono">ADT^A03</span>) as any other, carrying a death
@@ -345,15 +345,15 @@ export function EmrTab({
         <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
           {patients.map((p) => (
             <div key={p.id} className="flex items-center gap-2 rounded-md border border-line px-3 py-2">
-              <span className="flex-1 text-[11.5px] font-medium text-ink">{p.label}</span>
-              <span className="text-[9px] uppercase tracking-wide text-muted">{p.status}</span>
+              <span className="flex-1 text-[13.5px] font-medium text-ink">{p.label}</span>
+              <span className="text-[11px] uppercase tracking-wide text-muted">{p.status}</span>
               <div className="flex gap-1">
                 {ADT_EVENTS.map((e) => (
                   <button
                     key={e.type}
                     disabled={p.status === e.to}
                     onClick={() => onFire(p, e.type, e.to)}
-                    className={`rounded px-2 py-1 text-[10px] font-medium disabled:opacity-30 ${
+                    className={`rounded px-2 py-1 text-[12px] font-medium disabled:opacity-30 ${
                       e.type === "deceased" ? "bg-navy text-white" : "border border-line text-ink-soft"
                     }`}
                   >
@@ -367,22 +367,22 @@ export function EmrTab({
       </div>
 
       <div className="mt-5 rounded-xl border border-line bg-surface p-4">
-        <div className="mb-2 text-[9px] uppercase tracking-wide text-muted">
+        <div className="mb-2 text-[11px] uppercase tracking-wide text-muted">
           Integration log
         </div>
-        <p className="mb-3 text-[10.5px] leading-relaxed text-muted">
+        <p className="mb-3 text-[12.5px] leading-relaxed text-muted">
           Every DME status change gets a timestamped entry — out-of-stock swaps, reschedules,
           and status updates are all logged with a note.
         </p>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
-            <div className="mb-1.5 text-[9px] uppercase tracking-wide text-muted">
+            <div className="mb-1.5 text-[11px] uppercase tracking-wide text-muted">
               ADT events (patient status)
             </div>
             {log.length === 0 ? (
-              <div className="text-xs text-muted">No ADT events yet.</div>
+              <div className="text-sm text-muted">No ADT events yet.</div>
             ) : (
-              <ul className="flex flex-col gap-1 font-mono text-[10.5px] text-ink-soft">
+              <ul className="flex flex-col gap-1 font-mono text-[12.5px] text-ink-soft">
                 {log.map((line) => (
                   <li key={line}>{line}</li>
                 ))}
@@ -390,13 +390,13 @@ export function EmrTab({
             )}
           </div>
           <div>
-            <div className="mb-1.5 text-[9px] uppercase tracking-wide text-muted">
+            <div className="mb-1.5 text-[11px] uppercase tracking-wide text-muted">
               Order events (DME tracker)
             </div>
             {orderLog.length === 0 ? (
-              <div className="text-xs text-muted">No order events yet.</div>
+              <div className="text-sm text-muted">No order events yet.</div>
             ) : (
-              <ul className="flex flex-col gap-1 font-mono text-[10.5px] text-ink-soft">
+              <ul className="flex flex-col gap-1 font-mono text-[12.5px] text-ink-soft">
                 {orderLog.map((line) => (
                   <li key={line}>{line}</li>
                 ))}

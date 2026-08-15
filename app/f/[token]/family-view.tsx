@@ -69,7 +69,7 @@ export function FamilyView({ token }: { token: string }) {
   if (error)
     return (
       <div className="min-h-dvh bg-cream flex items-center justify-center p-6">
-        <p className="text-sm text-ink-soft">This link isn&apos;t active. Call your hospice care team.</p>
+        <p className="text-base text-ink-soft">This link isn&apos;t active. Call your hospice care team.</p>
       </div>
     );
   if (!state)
@@ -111,16 +111,16 @@ export function FamilyView({ token }: { token: string }) {
     <div className="min-h-dvh w-full bg-cream">
       <main className="mx-auto w-full max-w-md px-5 py-10 flex flex-col gap-6">
         <div>
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-ink-soft">
+          <div className="text-[13px] font-semibold uppercase tracking-wider text-ink-soft">
             Wasatch Hospice · equipment updates
           </div>
-          <h1 className="text-xl font-semibold text-ink">
+          <h1 className="text-[23px] font-semibold text-ink">
             For the family of {patient.label}
           </h1>
         </div>
 
         {deceased && (
-          <p className="text-sm leading-relaxed text-ink-soft">
+          <p className="text-base leading-relaxed text-ink-soft">
             We&apos;re so sorry for your loss. Below is everything that will happen with
             the medical equipment in the home — you don&apos;t need to call anyone or do
             anything.
@@ -133,13 +133,13 @@ export function FamilyView({ token }: { token: string }) {
             const moment = conflictMoment(o);
             return (
               <Pulse key={o.id} watch={line.headline} className="rounded-lg bg-surface border border-line p-4">
-                <div className="text-sm font-semibold text-ink leading-snug">
+                <div className="text-base font-semibold text-ink leading-snug">
                   {line.headline}
                 </div>
-                <p className="mt-1.5 text-sm leading-relaxed text-ink-soft">{line.body}</p>
+                <p className="mt-1.5 text-base leading-relaxed text-ink-soft">{line.body}</p>
 
                 {moment && notified[o.id] && (
-                  <p className="mt-3 text-sm font-medium text-teal">
+                  <p className="mt-3 text-base font-medium text-teal">
                     ✓ Your care team has been notified — they&apos;ll confirm a new
                     time right here.
                   </p>
@@ -147,14 +147,14 @@ export function FamilyView({ token }: { token: string }) {
                 {moment && !notified[o.id] && conflictFor !== o.id && (
                   <button
                     onClick={() => setConflictFor(o.id)}
-                    className="mt-3 text-left text-sm font-medium text-secondary underline"
+                    className="mt-3 text-left text-base font-medium text-secondary underline"
                   >
                     Does this time not work? Tell your care team
                   </button>
                 )}
                 {moment && !notified[o.id] && conflictFor === o.id && (
                   <div className="mt-3 flex flex-col gap-1.5">
-                    <div className="text-xs font-medium text-ink-soft">
+                    <div className="text-sm font-medium text-ink-soft">
                       What would work better? Your care team will confirm the
                       new time.
                     </div>
@@ -162,20 +162,20 @@ export function FamilyView({ token }: { token: string }) {
                       <button
                         key={slot.label}
                         onClick={() => sendConflict(o, moment, slot)}
-                        className="rounded-md border border-line bg-cream px-3 py-2.5 text-left text-sm font-medium text-ink active:bg-line"
+                        className="rounded-md border border-line bg-cream px-3 py-2.5 text-left text-base font-medium text-ink active:bg-line"
                       >
                         {slot.label}
                       </button>
                     ))}
                     {sendFailed === o.id && (
-                      <p className="text-xs text-ink-soft">
+                      <p className="text-sm text-ink-soft">
                         That didn&apos;t go through — please call the number below
                         instead.
                       </p>
                     )}
                     <button
                       onClick={() => setConflictFor(null)}
-                      className="self-start px-1 py-1 text-xs text-muted underline"
+                      className="self-start px-1 py-1 text-sm text-muted underline"
                     >
                       Never mind
                     </button>
@@ -188,13 +188,13 @@ export function FamilyView({ token }: { token: string }) {
 
         {careMessages.length > 0 && (
           <div className="flex flex-col gap-2">
-            <div className="text-[11px] font-semibold uppercase tracking-wider text-ink-soft">
+            <div className="text-[13px] font-semibold uppercase tracking-wider text-ink-soft">
               From your care team
             </div>
             {careMessages.map((m) => (
               <Pulse key={m.id} watch={m.id} className="rounded-lg bg-surface border border-line p-4">
-                <p className="text-sm leading-relaxed text-ink">{m.text}</p>
-                <div className="mt-1.5 text-[10px] text-muted">
+                <p className="text-base leading-relaxed text-ink">{m.text}</p>
+                <div className="mt-1.5 text-[12px] text-muted">
                   {new Date(m.at).toLocaleString([], {
                     weekday: "long",
                     hour: "numeric",
@@ -207,8 +207,8 @@ export function FamilyView({ token }: { token: string }) {
         )}
 
         <div className="rounded-lg bg-surface border border-line p-4">
-          <div className="text-xs font-semibold text-ink">Questions?</div>
-          <p className="mt-1 text-sm text-ink-soft">
+          <div className="text-sm font-semibold text-ink">Questions?</div>
+          <p className="mt-1 text-base text-ink-soft">
             Call your hospice care team anytime at{" "}
             <a href="tel:+18015550142" className="font-medium text-secondary underline">
               (801) 555-0142
@@ -217,7 +217,7 @@ export function FamilyView({ token }: { token: string }) {
           </p>
         </div>
 
-        <p className="text-[11px] text-muted">
+        <p className="text-[13px] text-muted">
           This page updates automatically. Synthetic demo data — no real patients.
         </p>
       </main>

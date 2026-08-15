@@ -132,7 +132,7 @@ export function PatientList({
 
   return (
     <div className="p-5">
-      <div className="mb-3.5 flex flex-wrap items-center gap-1.5 text-[10px]">
+      <div className="mb-3.5 flex flex-wrap items-center gap-1.5 text-[12px]">
         <Chip active={statusFilter === "All"} onClick={() => setStatusFilter("All")}>
           All {patients.length}
         </Chip>
@@ -148,16 +148,16 @@ export function PatientList({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search patient / asset ID"
-          className="ml-auto rounded-full border border-dashed border-line-strong bg-page px-3 py-1.5 text-[11px] text-ink placeholder:text-muted"
+          className="ml-auto rounded-full border border-dashed border-line-strong bg-page px-3 py-1.5 text-[13px] text-ink placeholder:text-muted"
         />
         <button
           onClick={() => onNewOrder(visible[0]?.id ?? patients[0]?.id)}
-          className="rounded-md bg-brand px-3.5 py-1.5 text-[11px] font-semibold text-white"
+          className="rounded-md bg-brand px-3.5 py-1.5 text-[13px] font-semibold text-white"
         >
           New order
         </button>
       </div>
-      <div className="grid grid-cols-[14px_1fr_18px] gap-2.5 border-b border-line pb-2 text-[9px] uppercase tracking-wide text-muted sm:grid-cols-[14px_1.7fr_1.1fr_.8fr_.95fr_.6fr_54px_18px]">
+      <div className="grid grid-cols-[14px_1fr_18px] gap-2.5 border-b border-line pb-2 text-[11px] uppercase tracking-wide text-muted sm:grid-cols-[14px_1.7fr_1.1fr_.8fr_.95fr_.6fr_54px_18px]">
         <div />
         <div>
           <span className="sm:hidden">Patient · spend · attention</span>
@@ -198,7 +198,7 @@ export function PatientList({
                   setExpanded(isOpen ? null : p.id);
                 }
               }}
-              className="grid w-full cursor-pointer grid-cols-[14px_1fr_18px] items-center gap-2.5 border-b border-line py-3.5 text-left text-xs text-ink sm:grid-cols-[14px_1.7fr_1.1fr_.8fr_.95fr_.6fr_54px_18px]"
+              className="grid w-full cursor-pointer grid-cols-[14px_1fr_18px] items-center gap-2.5 border-b border-line py-3.5 text-left text-sm text-ink sm:grid-cols-[14px_1.7fr_1.1fr_.8fr_.95fr_.6fr_54px_18px]"
             >
               <span
                 className={`h-[30px] w-[5px] rounded-sm ${isOpen ? "bg-secondary" : "bg-line"}`}
@@ -207,23 +207,23 @@ export function PatientList({
                 <span className="flex items-baseline gap-2">
                   <span className="font-medium">{p.label}</span>
                   {p.dx && (
-                    <span className="rounded border border-line px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-ink-soft">
+                    <span className="rounded border border-line px-1.5 py-0.5 text-[11px] uppercase tracking-wide text-ink-soft">
                       {p.dx}
                     </span>
                   )}
-                  <span className="hidden text-[10px] text-muted sm:inline">{p.id}</span>
+                  <span className="hidden text-[12px] text-muted sm:inline">{p.id}</span>
                 </span>
                 {/* Assets/Days/Family drop below sm — cost-of-care is the selling
                     point, so spend (with its vs-average delta) earns this line
                     instead; the risk pill rides along when there is one. */}
                 <span className="mt-1 flex flex-wrap items-center gap-1.5 sm:hidden">
-                  <span className="whitespace-nowrap text-[9.5px] text-ink-soft">
+                  <span className="whitespace-nowrap text-[11px] text-ink-soft">
                     ${spend.toLocaleString()} DME
                     {avgSpend > 0 && ` · ${vsAvgPct >= 0 ? "+" : ""}${vsAvgPct}% vs avg`}
                   </span>
                   {risk && (
                     <span
-                      className={`whitespace-nowrap rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${risk.className}`}
+                      className={`whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${risk.className}`}
                     >
                       {risk.label}
                     </span>
@@ -233,31 +233,31 @@ export function PatientList({
               <span className="hidden sm:block">
                 {risk && (
                   <span
-                    className={`rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${risk.className}`}
+                    className={`rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${risk.className}`}
                   >
                     {risk.label}
                   </span>
                 )}
               </span>
-              <span className="hidden text-[11px] sm:block">{openDmeLabel(patientOrders)}</span>
-              <span className="hidden text-[11px] sm:block">
+              <span className="hidden text-[13px] sm:block">{openDmeLabel(patientOrders)}</span>
+              <span className="hidden text-[13px] sm:block">
                 <span>
                   ${spend.toLocaleString()} DME
                   {avgSpend > 0 && (
-                    <span className="ml-1 text-[9px] text-ink-soft">
+                    <span className="ml-1 text-[11px] text-ink-soft">
                       {vsAvgPct >= 0 ? "+" : ""}
                       {vsAvgPct}%
                     </span>
                   )}
                 </span>
                 {p.rxSpendMonthly !== undefined && (
-                  <span className="block text-[9px] text-ink-soft">
+                  <span className="block text-[11px] text-ink-soft">
                     ${p.rxSpendMonthly.toLocaleString()}/mo Rx
                   </span>
                 )}
               </span>
-              <span className="hidden text-[11px] sm:block">{Math.round(days)}</span>
-              <span className="hidden text-[10px] text-ink-soft sm:block">
+              <span className="hidden text-[13px] sm:block">{Math.round(days)}</span>
+              <span className="hidden text-[12px] text-ink-soft sm:block">
                 {p.familyToken ? (
                   <Link
                     href={`/f/${p.familyToken}`}
@@ -271,14 +271,14 @@ export function PatientList({
                   "—"
                 )}
               </span>
-              <span className="text-right text-[13px] text-muted">{isOpen ? "⌄" : "›"}</span>
+              <span className="text-right text-[15px] text-muted">{isOpen ? "⌄" : "›"}</span>
             </div>
 
             {isOpen && (
               <div className="mb-2.5 rounded-xl border border-line bg-page p-4 shadow-sm">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   <div>
-                    <div className="mb-2 text-[9px] uppercase tracking-wide text-muted">
+                    <div className="mb-2 text-[11px] uppercase tracking-wide text-muted">
                       {/* Only delivered-and-not-picked-up items are IN the
                           home — calling an ordered item "on site" put this
                           panel out of sync with the vendor and family views. */}
@@ -289,7 +289,7 @@ export function PatientList({
                       of {patientOrders.reduce((s, o) => s + o.items.length, 0)} in the home
                     </div>
                     {patientOrders.length === 0 ? (
-                      <div className="text-[11px] text-muted">No orders on file.</div>
+                      <div className="text-[13px] text-muted">No orders on file.</div>
                     ) : (
                       <div className="flex flex-col gap-1.5">
                         {patientOrders.map((o) => (
@@ -297,23 +297,23 @@ export function PatientList({
                             {o.items.map((it) => (
                               <div
                                 key={`${o.id}-${it.hcpcs}`}
-                                className="flex items-center gap-2.5 rounded-md border border-line bg-surface px-3 py-2 text-[11px]"
+                                className="flex items-center gap-2.5 rounded-md border border-line bg-surface px-3 py-2 text-[13px]"
                               >
-                                <span className="font-mono text-[10px] text-muted">{it.hcpcs}</span>
+                                <span className="font-mono text-[12px] text-muted">{it.hcpcs}</span>
                                 <span className="flex-1 text-ink">{it.name}</span>
-                                <span className="text-[9px] text-muted">
+                                <span className="text-[11px] text-muted">
                                   {Math.round(daysOnRent(o, now))} d · ${Math.round(orderDailyRate(o) * 30)}/mo
                                 </span>
                                 <span
-                                  className={`rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${pillFor(o).className}`}
+                                  className={`rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${pillFor(o).className}`}
                                 >
                                   {pillFor(o).label}
                                 </span>
                               </div>
                             ))}
                             {o.note && (
-                              <div className="rounded-md border border-dashed border-line-strong bg-page px-3 py-2 text-[10.5px] leading-relaxed text-ink-soft">
-                                <span className="mr-1 text-[9px] uppercase tracking-wide text-muted">
+                              <div className="rounded-md border border-dashed border-line-strong bg-page px-3 py-2 text-[12.5px] leading-relaxed text-ink-soft">
+                                <span className="mr-1 text-[11px] uppercase tracking-wide text-muted">
                                   Note ·
                                 </span>
                                 {o.note}
@@ -336,14 +336,14 @@ export function PatientList({
                         return (
                           <div
                             key={o.id}
-                            className="mt-3 rounded-md border border-critical bg-surface p-3 text-[11px] leading-relaxed text-ink"
+                            className="mt-3 rounded-md border border-critical bg-surface p-3 text-[13px] leading-relaxed text-ink"
                           >
                             <div>
                               Pickup overdue {hours}h —{" "}
                               <span className="font-semibold">${(overdueDays * rate).toFixed(2)}</span>{" "}
                               accrued past the 24-hour window.
                             </div>
-                            <div className="mt-1.5 text-[10px] text-ink-soft">
+                            <div className="mt-1.5 text-[12px] text-ink-soft">
                               {overdueDays} overdue day{overdueDays === 1 ? "" : "s"} × $
                               {rate.toFixed(2)}/day · CMS rate for {hcpcs}
                             </div>
@@ -351,10 +351,10 @@ export function PatientList({
                         );
                       })}
 
-                    <div className="mt-3.5 mb-1.5 text-[9px] uppercase tracking-wide text-muted">
+                    <div className="mt-3.5 mb-1.5 text-[11px] uppercase tracking-wide text-muted">
                       Timeline
                     </div>
-                    <div className="rounded-md border border-line bg-surface p-3 text-[10.5px] leading-relaxed text-ink">
+                    <div className="rounded-md border border-line bg-surface p-3 text-[12.5px] leading-relaxed text-ink">
                       {buildTimeline(patientOrders, vendorName).map((e, i) => (
                         <div key={i} className="flex">
                           <span className="min-w-[74px] font-mono text-ink-soft">
@@ -367,10 +367,10 @@ export function PatientList({
                   </div>
 
                   <div>
-                    <div className="mb-2 text-[9px] uppercase tracking-wide text-muted">
+                    <div className="mb-2 text-[11px] uppercase tracking-wide text-muted">
                       Cost to date
                     </div>
-                    <div className="rounded-md border border-line bg-surface p-3 text-[11px] leading-loose text-ink">
+                    <div className="rounded-md border border-line bg-surface p-3 text-[13px] leading-loose text-ink">
                       <Row label="DME to date" value={`$${spend.toLocaleString()}`} strong />
                       <Row
                         label="Rx spend (mo.)"
@@ -404,7 +404,7 @@ export function PatientList({
                         <Link
                           href={`/f/${p.familyToken}`}
                           target="_blank"
-                          className="flex min-h-[44px] flex-1 basis-[45%] items-center justify-center rounded-md border border-line-strong bg-surface px-3 py-2 text-[11px] text-ink-soft sm:min-h-0 sm:flex-none sm:basis-auto"
+                          className="flex min-h-[44px] flex-1 basis-[45%] items-center justify-center rounded-md border border-line-strong bg-surface px-3 py-2 text-[13px] text-ink-soft sm:min-h-0 sm:flex-none sm:basis-auto"
                         >
                           Open family tracker
                         </Link>
@@ -412,20 +412,20 @@ export function PatientList({
                       <button
                         onClick={() => handleMessageFamily(p.id)}
                         disabled={familyStatus[p.id] === "sending"}
-                        className="min-h-[44px] flex-1 basis-[45%] rounded-md border border-line-strong bg-surface px-3 py-2 text-[11px] text-ink-soft disabled:opacity-60 sm:min-h-0 sm:flex-none sm:basis-auto"
+                        className="min-h-[44px] flex-1 basis-[45%] rounded-md border border-line-strong bg-surface px-3 py-2 text-[13px] text-ink-soft disabled:opacity-60 sm:min-h-0 sm:flex-none sm:basis-auto"
                       >
                         Message family
                       </button>
                       {familyStatus[p.id] === "sending" && (
-                        <span className="self-center text-[10px] text-muted">Drafting…</span>
+                        <span className="self-center text-[12px] text-muted">Drafting…</span>
                       )}
                       {familyStatus[p.id] === "sent" && (
-                        <span className="self-center text-[10px] text-teal">
+                        <span className="self-center text-[12px] text-teal">
                           Draft sent to Approvals ✓
                         </span>
                       )}
                       {familyStatus[p.id] === "error" && (
-                        <span className="self-center text-[10px] text-critical">
+                        <span className="self-center text-[12px] text-critical">
                           Couldn&apos;t send — try again
                         </span>
                       )}
@@ -441,20 +441,20 @@ export function PatientList({
                           const target = patientOrders[0];
                           if (target) onAddNote(target.id);
                         }}
-                        className="min-h-[44px] flex-1 basis-[45%] rounded-md border border-line-strong bg-surface px-3 py-2 text-[11px] text-ink-soft sm:min-h-0 sm:flex-none sm:basis-auto"
+                        className="min-h-[44px] flex-1 basis-[45%] rounded-md border border-line-strong bg-surface px-3 py-2 text-[13px] text-ink-soft sm:min-h-0 sm:flex-none sm:basis-auto"
                       >
                         Add note
                       </button>
                       <button
                         onClick={() => onNewOrder(p.id)}
-                        className="min-h-[44px] flex-1 basis-[45%] rounded-md border border-line-strong bg-surface px-3 py-2 text-[11px] text-ink-soft sm:min-h-0 sm:flex-none sm:basis-auto"
+                        className="min-h-[44px] flex-1 basis-[45%] rounded-md border border-line-strong bg-surface px-3 py-2 text-[13px] text-ink-soft sm:min-h-0 sm:flex-none sm:basis-auto"
                       >
                         New order
                       </button>
                       {p.status === "active" && (
                         <button
                           onClick={() => onRecordPassing(p.id)}
-                          className="min-h-[44px] flex-1 basis-[45%] rounded-md border-[1.5px] border-critical bg-surface px-3 py-2 text-[11px] font-medium text-critical sm:min-h-0 sm:flex-none sm:basis-auto"
+                          className="min-h-[44px] flex-1 basis-[45%] rounded-md border-[1.5px] border-critical bg-surface px-3 py-2 text-[13px] font-medium text-critical sm:min-h-0 sm:flex-none sm:basis-auto"
                         >
                           Record passing
                         </button>
@@ -469,7 +469,7 @@ export function PatientList({
       })}
 
       {visible.length === 0 && (
-        <div className="mt-4 rounded-md border border-dashed border-line-strong py-8 text-center text-xs text-muted">
+        <div className="mt-4 rounded-md border border-dashed border-line-strong py-8 text-center text-sm text-muted">
           No patients match &quot;{query}&quot;.
         </div>
       )}

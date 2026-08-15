@@ -96,13 +96,13 @@ export function OnHandList({
 
   return (
     <div className="p-5">
-      <div className="mb-3.5 rounded-lg border border-dashed border-line-strong bg-page px-3 py-2 text-[10.5px] leading-relaxed text-ink-soft">
+      <div className="mb-3.5 rounded-lg border border-dashed border-line-strong bg-page px-3 py-2 text-[12.5px] leading-relaxed text-ink-soft">
         Small/portable equipment kept on-site as vendor-owned consignment stock — walkers,
         wheelchairs, commodes. Beds, oxygen, and pressure mattresses are always vendor-dispatched,
         never on-hand.
       </div>
 
-      <div className="mb-3.5 flex flex-wrap items-center gap-1.5 text-[10px]">
+      <div className="mb-3.5 flex flex-wrap items-center gap-1.5 text-[12px]">
         <Chip active={category === "All"} onClick={() => setCategory("All")}>
           All {assets.length}
         </Chip>
@@ -115,11 +115,11 @@ export function OnHandList({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search asset ID / vendor"
-          className="ml-auto rounded-full border border-dashed border-line-strong bg-page px-3 py-1.5 text-[11px] text-ink placeholder:text-muted"
+          className="ml-auto rounded-full border border-dashed border-line-strong bg-page px-3 py-1.5 text-[13px] text-ink placeholder:text-muted"
         />
       </div>
 
-      <div className="grid grid-cols-[14px_1fr_18px] gap-2.5 border-b border-line pb-2 text-[9px] uppercase tracking-wide text-muted sm:grid-cols-[14px_1.3fr_.9fr_1fr_.9fr_.6fr_18px]">
+      <div className="grid grid-cols-[14px_1fr_18px] gap-2.5 border-b border-line pb-2 text-[11px] uppercase tracking-wide text-muted sm:grid-cols-[14px_1.3fr_.9fr_1fr_.9fr_.6fr_18px]">
         <div />
         <div>
           <span className="sm:hidden">Item · state</span>
@@ -149,12 +149,12 @@ export function OnHandList({
                   setExpanded(isOpen ? null : a.id);
                 }
               }}
-              className="grid w-full cursor-pointer grid-cols-[14px_1fr_18px] items-center gap-2.5 border-b border-line py-3 text-left text-[11px] text-ink sm:grid-cols-[14px_1.3fr_.9fr_1fr_.9fr_.6fr_18px]"
+              className="grid w-full cursor-pointer grid-cols-[14px_1fr_18px] items-center gap-2.5 border-b border-line py-3 text-left text-[13px] text-ink sm:grid-cols-[14px_1.3fr_.9fr_1fr_.9fr_.6fr_18px]"
             >
               <span className={`h-8 w-[5px] rounded-sm ${RAIL_CLASS[a.state]}`} />
               <span>
                 <span className="block font-medium">{EQUIPMENT[a.hcpcs]?.name ?? a.hcpcs}</span>
-                <span className="hidden font-mono text-[9px] text-muted sm:block">
+                <span className="hidden font-mono text-[11px] text-muted sm:block">
                   {a.hcpcs} · {a.id}
                 </span>
                 {/* Vendor/Patient/Days-in-state drop below sm — state pill rides
@@ -162,25 +162,25 @@ export function OnHandList({
                     without a tap. All three reappear in the Detail block below. */}
                 <span className="mt-1 flex items-center gap-1.5 sm:hidden">
                   <span
-                    className={`whitespace-nowrap rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${STATE_CLASS[a.state]}`}
+                    className={`whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${STATE_CLASS[a.state]}`}
                   >
                     {STATE_LABEL[a.state]}
                   </span>
-                  <span className="whitespace-nowrap font-mono text-[9.5px] text-ink-soft">
+                  <span className="whitespace-nowrap font-mono text-[11px] text-ink-soft">
                     {a.hcpcs} · {a.id}
                   </span>
                 </span>
               </span>
-              <span className="hidden text-[10px] text-ink-soft sm:block">{vendorName(a.vendorId)}</span>
+              <span className="hidden text-[12px] text-ink-soft sm:block">{vendorName(a.vendorId)}</span>
               <span className="hidden sm:block">
                 <span
-                  className={`rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${STATE_CLASS[a.state]}`}
+                  className={`rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${STATE_CLASS[a.state]}`}
                 >
                   {STATE_LABEL[a.state]}
                 </span>
               </span>
-              <span className="hidden text-[10px] text-ink-soft sm:block">{patient?.label ?? "—"}</span>
-              <span className="hidden text-[10px] sm:block">{daysInState(a.updatedAt, now)}d</span>
+              <span className="hidden text-[12px] text-ink-soft sm:block">{patient?.label ?? "—"}</span>
+              <span className="hidden text-[12px] sm:block">{daysInState(a.updatedAt, now)}d</span>
               <span className="text-right text-muted">{isOpen ? "⌄" : "›"}</span>
             </div>
 
@@ -192,8 +192,8 @@ export function OnHandList({
                 {/* Detail block: Vendor/Patient/Days-in-state live here at every
                     width, not just below sm — a detail view whose facts change
                     by breakpoint is a bug waiting to happen. */}
-                <div className="mb-2 text-[9px] uppercase tracking-wide text-muted">Detail</div>
-                <div className="mb-3.5 rounded-md border border-line bg-surface p-3 text-[11px] leading-loose text-ink">
+                <div className="mb-2 text-[11px] uppercase tracking-wide text-muted">Detail</div>
+                <div className="mb-3.5 rounded-md border border-line bg-surface p-3 text-[13px] leading-loose text-ink">
                   <div className="flex">
                     <span className="min-w-[96px] text-ink-soft">Vendor</span>
                     <span>{vendorName(a.vendorId)}</span>
@@ -208,14 +208,14 @@ export function OnHandList({
                   </div>
                 </div>
 
-                <div className="mb-2 text-[9px] uppercase tracking-wide text-muted">
+                <div className="mb-2 text-[11px] uppercase tracking-wide text-muted">
                   Lifecycle · vendor retains title throughout
                 </div>
                 <div className="mb-3.5 flex flex-wrap gap-1.5">
                   {(Object.keys(STATE_LABEL) as OnHandState[]).map((s) => (
                     <span
                       key={s}
-                      className={`rounded px-1.5 py-1 text-[9px] font-semibold uppercase tracking-wide ${
+                      className={`rounded px-1.5 py-1 text-[11px] font-semibold uppercase tracking-wide ${
                         s === a.state ? "bg-navy text-white" : "bg-line text-ink-soft"
                       }`}
                     >
@@ -231,7 +231,7 @@ export function OnHandList({
                       onChange={(e) =>
                         setDeployPatient((d) => ({ ...d, [a.id]: e.target.value }))
                       }
-                      className="rounded-md border border-line-strong bg-surface px-2.5 py-2.5 text-[11px] text-ink"
+                      className="rounded-md border border-line-strong bg-surface px-2.5 py-2.5 text-[13px] text-ink"
                     >
                       <option value="">Choose patient…</option>
                       {activePatients.map((p) => (
@@ -246,7 +246,7 @@ export function OnHandList({
                         if (pid) onAdvance(a.id, pid);
                       }}
                       disabled={!deployPatient[a.id]}
-                      className="rounded-md bg-brand px-3.5 py-2.5 text-[11px] font-semibold text-white disabled:opacity-40"
+                      className="rounded-md bg-brand px-3.5 py-2.5 text-[13px] font-semibold text-white disabled:opacity-40"
                     >
                       Deploy to patient
                     </button>
@@ -254,7 +254,7 @@ export function OnHandList({
                 ) : (
                   <button
                     onClick={() => onAdvance(a.id)}
-                    className="rounded-md bg-brand px-3.5 py-2.5 text-[11px] font-semibold text-white"
+                    className="rounded-md bg-brand px-3.5 py-2.5 text-[13px] font-semibold text-white"
                   >
                     Advance to {STATE_LABEL[next]}
                   </button>
@@ -266,7 +266,7 @@ export function OnHandList({
       })}
 
       {visible.length === 0 && (
-        <div className="mt-4 rounded-md border border-dashed border-line-strong py-8 text-center text-xs text-muted">
+        <div className="mt-4 rounded-md border border-dashed border-line-strong py-8 text-center text-sm text-muted">
           No on-hand assets match.
         </div>
       )}

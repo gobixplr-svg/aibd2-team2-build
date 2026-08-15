@@ -21,20 +21,20 @@ export function DraftCard({
 
   return (
     <div className="mt-2.5 rounded-md border border-warning/60 bg-cream p-3">
-      <div className="mb-1.5 text-[9px] uppercase tracking-wide text-muted">
+      <div className="mb-1.5 text-[11px] uppercase tracking-wide text-muted">
         Family message · Claude draft — edit, then a person sends it
       </div>
       <textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
         rows={3}
-        className="w-full rounded-md border border-line bg-surface px-2.5 py-2 text-[11px] leading-relaxed text-ink"
+        className="w-full rounded-md border border-line bg-surface px-2.5 py-2 text-[13px] leading-relaxed text-ink"
       />
       <div className="mt-2 flex justify-end gap-1.5">
         <button
           onClick={() => onDismiss(item.id)}
           disabled={busy}
-          className="rounded-md border border-line-strong bg-surface px-3 py-1.5 text-[10px] text-ink-soft disabled:opacity-50"
+          className="rounded-md border border-line-strong bg-surface px-3 py-1.5 text-[12px] text-ink-soft disabled:opacity-50"
         >
           Dismiss
         </button>
@@ -44,7 +44,7 @@ export function DraftCard({
             onApprove(item.id, text.trim());
           }}
           disabled={busy || !text.trim()}
-          className="rounded-md bg-teal px-3 py-1.5 text-[10px] font-semibold text-white disabled:opacity-50"
+          className="rounded-md bg-teal px-3 py-1.5 text-[12px] font-semibold text-white disabled:opacity-50"
         >
           {busy ? "Sending…" : "Approve & send"}
         </button>

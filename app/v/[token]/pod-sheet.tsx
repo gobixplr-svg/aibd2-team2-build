@@ -69,16 +69,16 @@ export function PodSheet({
         onClick={(e) => e.stopPropagation()}
       >
         <div>
-          <h2 className="text-base font-bold text-ink">
+          <h2 className="text-lg font-bold text-ink">
             {mode === "delivery" ? "Proof of delivery" : "Pickup confirmation"}
           </h2>
-          <p className="text-xs text-muted">
+          <p className="text-sm text-muted">
             {order.patientLabel} · {order.items.map((i) => i.name).join(", ")}
           </p>
         </div>
 
         <label className="flex flex-col gap-1.5">
-          <span className="text-xs font-semibold text-ink-soft">
+          <span className="text-sm font-semibold text-ink-soft">
             Photo {mode === "delivery" ? "(equipment in place)" : "(equipment retrieved)"}
           </span>
           <input
@@ -90,7 +90,7 @@ export function PodSheet({
               if (!f) return;
               fileToDataUrl(f).then(setPhotoUrl, () => setPhotoUrl(URL.createObjectURL(f)));
             }}
-            className="text-xs text-muted file:mr-2 file:rounded-md file:border-0 file:bg-secondary file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white"
+            className="text-sm text-muted file:mr-2 file:rounded-md file:border-0 file:bg-secondary file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white"
           />
           {photoUrl && (
             // eslint-disable-next-line @next/next/no-img-element
@@ -99,7 +99,7 @@ export function PodSheet({
         </label>
 
         <div className="flex flex-col gap-1.5">
-          <span className="text-xs font-semibold text-ink-soft">
+          <span className="text-sm font-semibold text-ink-soft">
             Equipment condition {mode === "pickup" && "(on return)"}
           </span>
           {CHECKS.map((c) => (
@@ -113,7 +113,7 @@ export function PodSheet({
                 onChange={(e) => setChecks((v) => ({ ...v, [c.key]: e.target.checked }))}
                 className="h-5 w-5 accent-(--brx-teal)"
               />
-              <span className="text-sm text-ink">{c.label}</span>
+              <span className="text-base text-ink">{c.label}</span>
             </label>
           ))}
           {!allChecked && (
@@ -122,32 +122,32 @@ export function PodSheet({
               onChange={(e) => setNote(e.target.value)}
               placeholder="Describe the issue (required if any box is unchecked)"
               rows={2}
-              className="rounded-md border border-line-strong bg-cream px-3 py-2 text-sm text-ink placeholder:text-muted"
+              className="rounded-md border border-line-strong bg-cream px-3 py-2 text-base text-ink placeholder:text-muted"
             />
           )}
         </div>
 
         <label className="flex flex-col gap-1.5">
-          <span className="text-xs font-semibold text-ink-soft">
+          <span className="text-sm font-semibold text-ink-soft">
             {mode === "delivery" ? "Received by (family/staff name)" : "Retrieved by (driver name)"}
           </span>
           <input
             value={signedBy}
             onChange={(e) => setSignedBy(e.target.value)}
             placeholder="Full name"
-            className="rounded-md border border-line px-3 py-2.5 text-sm text-ink placeholder:text-muted"
+            className="rounded-md border border-line px-3 py-2.5 text-base text-ink placeholder:text-muted"
           />
         </label>
 
         {stillNeeded.length > 0 && (
-          <p className="text-[11px] leading-relaxed text-ink-soft">
+          <p className="text-[13px] leading-relaxed text-ink-soft">
             To confirm: {stillNeeded.join(" · ")}
           </p>
         )}
         <div className="flex gap-2">
           <button
             onClick={onCancel}
-            className="flex-1 rounded-md border border-line px-3 py-3 text-sm font-semibold text-ink-soft"
+            className="flex-1 rounded-md border border-line px-3 py-3 text-base font-semibold text-ink-soft"
           >
             Cancel
           </button>
@@ -160,7 +160,7 @@ export function PodSheet({
                 condition: { ...checks, note: note.trim() || undefined },
               })
             }
-            className="flex-[2] rounded-md bg-teal px-3 py-3 text-sm font-semibold text-white disabled:opacity-40"
+            className="flex-[2] rounded-md bg-teal px-3 py-3 text-base font-semibold text-white disabled:opacity-40"
           >
             {mode === "delivery" ? "Confirm delivery" : "Confirm pickup"}
           </button>

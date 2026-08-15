@@ -48,7 +48,7 @@ export function VendorQueue({ token }: { token: string }) {
   if (error)
     return (
       <div className="min-h-dvh flex items-center justify-center p-6">
-        <p className="text-sm text-critical">This dispatch link isn&apos;t active. ({error})</p>
+        <p className="text-base text-critical">This dispatch link isn&apos;t active. ({error})</p>
       </div>
     );
   if (!state) return <div className="min-h-dvh bg-page" />;
@@ -111,12 +111,12 @@ export function VendorQueue({ token }: { token: string }) {
       <header className="bg-navy text-white">
         <div className="mx-auto w-full max-w-6xl px-4 py-3 flex items-baseline justify-between">
           <div>
-            <div className="text-[11px] uppercase tracking-wider opacity-70">
+            <div className="text-[13px] uppercase tracking-wider opacity-70">
               Handoff · Dispatch
             </div>
-            <h1 className="text-lg font-semibold">{vendor.name}</h1>
+            <h1 className="text-[21px] font-semibold">{vendor.name}</h1>
           </div>
-          <span className="text-[11px] opacity-70">no login needed</span>
+          <span className="text-[13px] opacity-70">no login needed</span>
         </div>
       </header>
 
@@ -126,7 +126,7 @@ export function VendorQueue({ token }: { token: string }) {
             <OrderCard key={o.id} order={o} clock={timeLeft(o.targetAt)}>
               {accepting === o.id ? (
                 <div className="flex flex-col gap-1.5 pt-2">
-                  <div className="text-xs font-medium text-ink-soft">Set delivery ETA:</div>
+                  <div className="text-sm font-medium text-ink-soft">Set delivery ETA:</div>
                   {ETA_CHOICES.map((c) => (
                     <button
                       key={c.label}
@@ -136,7 +136,7 @@ export function VendorQueue({ token }: { token: string }) {
                         });
                         setAccepting(null);
                       }}
-                      className="rounded-md border border-line bg-surface px-3 py-2.5 text-left text-sm font-medium text-ink active:bg-cream"
+                      className="rounded-md border border-line bg-surface px-3 py-2.5 text-left text-base font-medium text-ink active:bg-cream"
                     >
                       {c.label}
                     </button>
@@ -145,7 +145,7 @@ export function VendorQueue({ token }: { token: string }) {
               ) : (
                 <button
                   onClick={() => setAccepting(o.id)}
-                  className="mt-2 w-full rounded-md bg-brand px-3 py-3 text-sm font-semibold text-white active:bg-brand-alt"
+                  className="mt-2 w-full rounded-md bg-brand px-3 py-3 text-base font-semibold text-white active:bg-brand-alt"
                 >
                   Accept order
                 </button>
@@ -168,7 +168,7 @@ export function VendorQueue({ token }: { token: string }) {
               )}
               {delaying === o.id ? (
                 <div className="flex flex-col gap-1.5 pt-2">
-                  <div className="text-xs font-medium text-ink-soft">
+                  <div className="text-sm font-medium text-ink-soft">
                     Propose a new delivery time — the care team and family see it:
                   </div>
                   {ETA_CHOICES.map((c) => (
@@ -183,7 +183,7 @@ export function VendorQueue({ token }: { token: string }) {
                         });
                         setDelaying(null);
                       }}
-                      className="rounded-md border border-line bg-surface px-3 py-2.5 text-left text-sm font-medium text-ink active:bg-cream"
+                      className="rounded-md border border-line bg-surface px-3 py-2.5 text-left text-base font-medium text-ink active:bg-cream"
                     >
                       {c.label}
                     </button>
@@ -218,7 +218,7 @@ export function VendorQueue({ token }: { token: string }) {
                 )}
                 {p.acknowledgedAt && !p.windowStart && (
                   <div className="flex flex-col gap-1.5 pt-2">
-                    <div className="text-xs font-medium text-ink-soft">
+                    <div className="text-sm font-medium text-ink-soft">
                       Commit a retrieval window (family sees this):
                     </div>
                     <WindowChoices
@@ -231,7 +231,7 @@ export function VendorQueue({ token }: { token: string }) {
                 )}
                 {p.acknowledgedAt && p.windowStart && (
                   <>
-                    <div className="mt-2 text-xs text-ink-soft">
+                    <div className="mt-2 text-sm text-ink-soft">
                       Window:{" "}
                       <span className="font-medium text-ink">
                         {new Date(p.windowStart).toLocaleString([], {
@@ -252,7 +252,7 @@ export function VendorQueue({ token }: { token: string }) {
                     </ActionBtn>
                     {rescheduling === o.id ? (
                       <div className="flex flex-col gap-1.5 pt-2">
-                        <div className="text-xs font-medium text-ink-soft">
+                        <div className="text-sm font-medium text-ink-soft">
                           Propose a new retrieval window (family sees this):
                         </div>
                         <WindowChoices
@@ -305,7 +305,7 @@ export function VendorQueue({ token }: { token: string }) {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="flex flex-col gap-2">
-      <h2 className="text-xs font-semibold uppercase tracking-wider text-muted px-1">
+      <h2 className="text-sm font-semibold uppercase tracking-wider text-muted px-1">
         {title}
       </h2>
       {children}
@@ -315,7 +315,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 function Empty({ text }: { text: string }) {
   return (
-    <div className="rounded-lg border border-dashed border-line-strong px-3 py-6 text-center text-sm text-muted">
+    <div className="rounded-lg border border-dashed border-line-strong px-3 py-6 text-center text-base text-muted">
       {text}
     </div>
   );
@@ -331,7 +331,7 @@ function ActionBtn({
   return (
     <button
       onClick={onClick}
-      className="mt-2 w-full rounded-md bg-secondary px-3 py-3 text-sm font-semibold text-white active:bg-secondary-hover"
+      className="mt-2 w-full rounded-md bg-secondary px-3 py-3 text-base font-semibold text-white active:bg-secondary-hover"
     >
       {children}
     </button>
@@ -358,7 +358,7 @@ function WindowChoices({
               new Date(engineNow + (h + 2) * 3600_000).toISOString(),
             )
           }
-          className="rounded-md border border-line bg-surface px-3 py-2.5 text-left text-sm font-medium text-ink active:bg-cream"
+          className="rounded-md border border-line bg-surface px-3 py-2.5 text-left text-base font-medium text-ink active:bg-cream"
         >
           {h === 2 ? "Today, next 2–4 hours" : h === 5 ? "Today, later window" : "Tomorrow morning"}
         </button>
@@ -377,7 +377,7 @@ function SubtleBtn({
   return (
     <button
       onClick={onClick}
-      className="mt-1.5 w-full rounded-md border border-line bg-surface px-3 py-2 text-sm font-medium text-ink-soft active:bg-cream"
+      className="mt-1.5 w-full rounded-md border border-line bg-surface px-3 py-2 text-base font-medium text-ink-soft active:bg-cream"
     >
       {children}
     </button>
@@ -388,7 +388,7 @@ function CancelLink({ onClick }: { onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      className="self-start px-1 py-1 text-xs text-muted underline"
+      className="self-start px-1 py-1 text-sm text-muted underline"
     >
       Never mind
     </button>
@@ -400,11 +400,11 @@ function ConditionChip({ order }: { order: Order }) {
   if (!cond) return null;
   const ok = cond.clean && cond.functional && cond.complete;
   return ok ? (
-    <span className="rounded-sm bg-teal/15 px-1.5 py-0.5 text-[11px] font-semibold text-teal">
+    <span className="rounded-sm bg-teal/15 px-1.5 py-0.5 text-[13px] font-semibold text-teal">
       Condition ✓
     </span>
   ) : (
-    <span className="rounded-sm bg-warning/20 px-1.5 py-0.5 text-[11px] font-semibold text-ink">
+    <span className="rounded-sm bg-warning/20 px-1.5 py-0.5 text-[13px] font-semibold text-ink">
       Condition issue: {cond.note}
     </span>
   );
@@ -431,19 +431,19 @@ function OrderCard({
     >
       <div className="flex items-center gap-2 flex-wrap">
         <span
-          className={`${STATE_BADGE[order.state]} rounded-sm px-1.5 py-0.5 text-[11px] font-semibold text-white`}
+          className={`${STATE_BADGE[order.state]} rounded-sm px-1.5 py-0.5 text-[13px] font-semibold text-white`}
         >
           {pickedUp ? "Picked up" : STATE_LABEL[order.state]}
         </span>
         {order.urgency === "stat" && !done && (
-          <span className="rounded-sm bg-navy px-1.5 py-0.5 text-[11px] font-bold tracking-wide text-white">
+          <span className="rounded-sm bg-navy px-1.5 py-0.5 text-[13px] font-bold tracking-wide text-white">
             STAT
           </span>
         )}
         {done && <ConditionChip order={order} />}
         {!done && clock && (
           <span
-            className={`ml-auto text-xs font-medium tabular-nums ${
+            className={`ml-auto text-sm font-medium tabular-nums ${
               clock.overdue ? "text-critical" : "text-ink-soft"
             }`}
           >
@@ -452,29 +452,29 @@ function OrderCard({
         )}
       </div>
 
-      <div className="mt-2 text-sm font-semibold text-ink">{order.patientLabel}</div>
-      <div className="text-xs text-muted">{order.address}</div>
+      <div className="mt-2 text-base font-semibold text-ink">{order.patientLabel}</div>
+      <div className="text-sm text-muted">{order.address}</div>
 
       <ul className="mt-2 flex flex-col gap-0.5">
         {order.items.map((it) => (
-          <li key={it.hcpcs} className="text-sm text-ink-soft">
-            <span className="font-mono text-[11px] text-muted mr-1.5">{it.hcpcs}</span>
+          <li key={it.hcpcs} className="text-base text-ink-soft">
+            <span className="font-mono text-[13px] text-muted mr-1.5">{it.hcpcs}</span>
             {it.name}
             {it.assetId && (
-              <span className="ml-1.5 text-[10px] text-muted">#{it.assetId}</span>
+              <span className="ml-1.5 text-[12px] text-muted">#{it.assetId}</span>
             )}
           </li>
         ))}
       </ul>
 
       {order.note && !done && (
-        <div className="mt-2 rounded-md bg-cream px-2.5 py-1.5 text-xs text-ink-soft">
+        <div className="mt-2 rounded-md bg-cream px-2.5 py-1.5 text-sm text-ink-soft">
           {order.note}
         </div>
       )}
 
       {order.etaAt && !done && order.state !== "delivered" && (
-        <div className="mt-2 text-xs text-ink-soft">
+        <div className="mt-2 text-sm text-ink-soft">
           ETA:{" "}
           <span className="font-medium text-ink">
             {new Date(order.etaAt).toLocaleTimeString([], {

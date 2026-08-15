@@ -76,8 +76,8 @@ export function EquipmentPage({
       <div className="rounded-2xl border border-line bg-surface overflow-hidden">
         <div className="flex flex-wrap items-end gap-3 border-b border-line px-5 pt-4">
           <div>
-            <div className="text-[17px] font-semibold text-ink">Equipment</div>
-            <div className="mt-0.5 mb-3 text-[11px] text-ink-soft">{subtitle}</div>
+            <div className="text-[20px] font-semibold text-ink">Equipment</div>
+            <div className="mt-0.5 mb-3 text-[13px] text-ink-soft">{subtitle}</div>
           </div>
           <div className="ml-auto hidden gap-1 sm:flex">
             {SUB_TABS.map((t) => (
@@ -85,7 +85,7 @@ export function EquipmentPage({
                 key={t.key}
                 data-spotlight={`subtab-${t.key}`}
                 onClick={() => setSubTab(t.key)}
-                className={`-mb-px border-b-[3px] px-3.5 py-2.5 text-xs ${
+                className={`-mb-px border-b-[3px] px-3.5 py-2.5 text-sm ${
                   subTab === t.key
                     ? "border-brand font-medium text-ink"
                     : "border-transparent text-ink-soft"
@@ -100,7 +100,7 @@ export function EquipmentPage({
           <select
             value={subTab}
             onChange={(e) => setSubTab(e.target.value as SubTabKey)}
-            className="mb-3 w-full rounded-md border border-line-strong bg-page px-3 py-2 text-xs text-ink sm:hidden"
+            className="mb-3 w-full rounded-md border border-line-strong bg-page px-3 py-2 text-sm text-ink sm:hidden"
           >
             {SUB_TABS.map((t) => (
               <option key={t.key} value={t.key}>
