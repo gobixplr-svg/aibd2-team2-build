@@ -325,8 +325,8 @@ export function StagePage() {
           <div className="flex min-h-0 flex-[2] flex-col overflow-hidden rounded-lg border-2 border-brand bg-surface">
             <PanelLabel
               icon="👪"
-              who="FAMILY"
-              detail="read-only link, texted to them"
+              who="THE CHECKETTS FAMILY"
+              detail="each family gets their own read-only link, texted to them — this one follows M. Checketts"
               accent="bg-brand"
             />
             <iframe src="/f/demo-family" title="Family tracker" className="h-full w-full flex-1 border-0" />
