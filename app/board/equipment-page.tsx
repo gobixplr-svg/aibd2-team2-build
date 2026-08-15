@@ -24,7 +24,6 @@ type SubTabKey = (typeof SUB_TABS)[number]["key"];
 // data is read. Approvals live one level up, in the header tray.
 export function EquipmentPage({
   orders,
-  history,
   patients,
   vendors,
   onHand,
@@ -41,7 +40,6 @@ export function EquipmentPage({
   onAdvanceOnHand,
 }: {
   orders: Order[];
-  history: Order[];
   patients: Patient[];
   vendors: Vendor[];
   onHand: OnHandAsset[];
@@ -150,13 +148,7 @@ export function EquipmentPage({
           />
         )}
         {subTab === "analytics" && (
-          <AnalyticsTab
-            orders={orders}
-            history={history}
-            patients={patients}
-            vendors={vendors}
-            now={now}
-          />
+          <AnalyticsTab orders={orders} patients={patients} vendors={vendors} now={now} />
         )}
       </div>
 

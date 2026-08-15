@@ -16,7 +16,7 @@ import type { InboundMessage, InboxItem } from "@/lib/contracts";
 import {
   appendLedger,
   getMessages,
-  getOrders,
+  getLiveOrders,
   getPatients,
   getWorld,
   putInboxItem,
@@ -58,7 +58,7 @@ export async function POST(req: Request) {
     const [world, patients, orders] = await Promise.all([
       getWorld(),
       getPatients(),
-      getOrders(),
+      getLiveOrders(),
     ]);
     const patient = patients.find((p) => p.id === patientId);
     if (!patient) {
